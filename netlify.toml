@@ -1,13 +1,6 @@
 [build]
   # No build command needed - static files
   publish = "src"
-  
-# Redirect for SPA if needed
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  conditions = {Role = ["admin"]}
 
 [[headers]]
   for = "/*"
