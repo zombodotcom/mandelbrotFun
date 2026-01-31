@@ -15,6 +15,7 @@ void main() {
 /**
  * Fragment shader source for Mandelbrot rendering
  * Supports: escape time, distance estimation, orbit traps, 15+ color schemes
+ * Uses double-double precision emulation for deep zooms
  */
 export const FRAGMENT_SHADER_SOURCE = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -24,7 +25,8 @@ export const FRAGMENT_SHADER_SOURCE = `
 #endif
 
 uniform vec2 u_resolution;
-uniform vec2 u_center;
+uniform vec2 u_center;      // High part of center
+uniform vec2 u_centerLow;   // Low part of center (for double-double precision)
 uniform float u_zoom;
 uniform float u_power;
 uniform float u_maxIter;
@@ -35,6 +37,84 @@ uniform float u_burningShip;
 uniform float u_juliaMode;
 uniform vec2 u_juliaC;
 uniform float u_coloringMode;  // 0=escape time, 1=distance est, 2=orbit trap
+uniform float u_useDoublePrecision; // 1.0 to enable double-double precision
+
+// ============ DOUBLE-DOUBLE ARITHMETIC ============
+// Represents a number as the sum of two floats: x = hi + lo
+// This effectively doubles the precision from ~7 to ~15 decimal digits
+
+// Quick two-sum: returns (hi, lo) such that a + b = hi + lo exactly
+vec2 twoSum(float a, float b) {
+    float s = a + b;
+    float v = s - a;
+    float e = (a - (s - v)) + (b - v);
+    return vec2(s, e);
+}
+
+// Two-product with FMA emulation
+vec2 twoProd(float a, float b) {
+    float p = a * b;
+    // Split a and b into high and low parts
+    float splitA = a * 4097.0; // 2^12 + 1
+    float aHi = splitA - (splitA - a);
+    float aLo = a - aHi;
+    float splitB = b * 4097.0;
+    float bHi = splitB - (splitB - b);
+    float bLo = b - bHi;
+    float e = ((aHi * bHi - p) + aHi * bLo + aLo * bHi) + aLo * bLo;
+    return vec2(p, e);
+}
+
+// Double-double addition: (aHi, aLo) + (bHi, bLo)
+vec2 ddAdd(vec2 a, vec2 b) {
+    vec2 s = twoSum(a.x, b.x);
+    vec2 t = twoSum(a.y, b.y);
+    s.y += t.x;
+    s = twoSum(s.x, s.y);
+    s.y += t.y;
+    return twoSum(s.x, s.y);
+}
+
+// Double-double multiplication: (aHi, aLo) * (bHi, bLo)
+vec2 ddMul(vec2 a, vec2 b) {
+    vec2 p = twoProd(a.x, b.x);
+    p.y += a.x * b.y + a.y * b.x;
+    return twoSum(p.x, p.y);
+}
+
+// Double-double subtraction
+vec2 ddSub(vec2 a, vec2 b) {
+    return ddAdd(a, vec2(-b.x, -b.y));
+}
+
+// Double-double from single float
+vec2 ddFromFloat(float a) {
+    return vec2(a, 0.0);
+}
+
+// Complex multiplication with double-double precision
+// z = (zxHi, zxLo) + i*(zyHi, zyLo)
+void ddComplexMul(vec2 zx, vec2 zy, vec2 wx, vec2 wy, out vec2 rx, out vec2 ry) {
+    // (zx + i*zy) * (wx + i*wy) = (zx*wx - zy*wy) + i*(zx*wy + zy*wx)
+    vec2 zxwx = ddMul(zx, wx);
+    vec2 zywy = ddMul(zy, wy);
+    vec2 zxwy = ddMul(zx, wy);
+    vec2 zywx = ddMul(zy, wx);
+    rx = ddSub(zxwx, zywy);
+    ry = ddAdd(zxwy, zywx);
+}
+
+// Complex squaring with double-double precision (optimized)
+void ddComplexSquare(vec2 zx, vec2 zy, out vec2 rx, out vec2 ry) {
+    // z^2 = (zx^2 - zy^2) + i*(2*zx*zy)
+    vec2 zx2 = ddMul(zx, zx);
+    vec2 zy2 = ddMul(zy, zy);
+    vec2 zxzy = ddMul(zx, zy);
+    rx = ddSub(zx2, zy2);
+    ry = ddAdd(zxzy, zxzy);  // 2 * zx * zy
+}
+
+// ============ STANDARD COMPLEX ARITHMETIC ============
 
 // Complex multiplication
 vec2 complexMul(vec2 a, vec2 b) {
@@ -163,54 +243,93 @@ void main() {
     uv = (uv - 0.5) * 2.0;
     uv.x *= u_resolution.x / u_resolution.y;
     
-    vec2 c = u_center + uv * 2.0 / u_zoom;
-    
-    vec2 z;
-    vec2 dz = vec2(1.0, 0.0);  // Derivative for distance estimation
-    
-    if (u_juliaMode > 0.5) {
-        z = c;
-        c = u_juliaC;
-    } else {
-        z = vec2(0.0, 0.0);
-    }
-    
     float iterations = 0.0;
-    float minDist = 1000.0;  // For orbit trap (distance to origin)
-    float minDistCross = 1000.0;  // Distance to axes
+    float minDist = 1000.0;
+    float minDistCross = 1000.0;
+    vec2 z;
+    vec2 dz = vec2(1.0, 0.0);
     
-    for (int i = 0; i < 1000; i++) {
-        if (float(i) >= u_maxIter) break;
+    // Use double-double precision for deep zooms (zoom > 1e6)
+    if (u_useDoublePrecision > 0.5 && abs(u_power - 2.0) < 0.01 && u_juliaMode < 0.5 && u_burningShip < 0.5) {
+        // Double-double precision path for z^2 + c
+        // Calculate c with extended precision
+        float uvScale = 2.0 / u_zoom;
+        vec2 cxDD = ddAdd(vec2(u_center.x, u_centerLow.x), ddFromFloat(uv.x * uvScale));
+        vec2 cyDD = ddAdd(vec2(u_center.y, u_centerLow.y), ddFromFloat(uv.y * uvScale));
         
-        if (u_burningShip > 0.5) {
-            z = abs(z);
+        // z starts at 0
+        vec2 zxDD = vec2(0.0, 0.0);
+        vec2 zyDD = vec2(0.0, 0.0);
+        
+        for (int i = 0; i < 2000; i++) {
+            if (float(i) >= u_maxIter) break;
+            
+            // z = z^2 + c using double-double
+            vec2 newZxDD, newZyDD;
+            ddComplexSquare(zxDD, zyDD, newZxDD, newZyDD);
+            zxDD = ddAdd(newZxDD, cxDD);
+            zyDD = ddAdd(newZyDD, cyDD);
+            
+            // Convert to float for escape check and coloring
+            z = vec2(zxDD.x, zyDD.x);
+            
+            // Orbit trap calculations
+            float distToOrigin = length(z);
+            minDist = min(minDist, distToOrigin);
+            minDistCross = min(minDistCross, min(abs(z.x), abs(z.y)));
+            
+            float magSq = dot(z, z);
+            if (magSq > 256.0) {
+                float log_zn = log(magSq) / 2.0;
+                float nu = log(log_zn / log(2.0)) / log(2.0);
+                iterations = float(i) + 1.0 - nu;
+                break;
+            }
+            
+            iterations = float(i);
         }
+    } else {
+        // Standard precision path
+        vec2 c = u_center + uv * 2.0 / u_zoom;
         
-        // Track derivative for distance estimation: dz = 2*z*dz + 1 (for z^2)
-        if (abs(u_power - 2.0) < 0.01) {
-            dz = 2.0 * complexMul(z, dz) + vec2(1.0, 0.0);
+        if (u_juliaMode > 0.5) {
+            z = c;
+            c = u_juliaC;
         } else {
-            // Approximate for other powers
-            dz = u_power * complexMul(complexPower(z, u_power - 1.0), dz) + vec2(1.0, 0.0);
+            z = vec2(0.0, 0.0);
         }
         
-        z = complexPower(z, u_power) + c;
-        
-        // Orbit trap calculations
-        float distToOrigin = length(z);
-        minDist = min(minDist, distToOrigin);
-        minDistCross = min(minDistCross, min(abs(z.x), abs(z.y)));
-        
-        float magSq = dot(z, z);
-        if (magSq > 256.0) {
-            // Smooth iteration count
-            float log_zn = log(magSq) / 2.0;
-            float nu = log(log_zn / log(2.0)) / log(u_power);
-            iterations = float(i) + 1.0 - nu;
-            break;
+        for (int i = 0; i < 2000; i++) {
+            if (float(i) >= u_maxIter) break;
+            
+            if (u_burningShip > 0.5) {
+                z = abs(z);
+            }
+            
+            // Track derivative for distance estimation
+            if (abs(u_power - 2.0) < 0.01) {
+                dz = 2.0 * complexMul(z, dz) + vec2(1.0, 0.0);
+            } else {
+                dz = u_power * complexMul(complexPower(z, u_power - 1.0), dz) + vec2(1.0, 0.0);
+            }
+            
+            z = complexPower(z, u_power) + c;
+            
+            // Orbit trap calculations
+            float distToOrigin = length(z);
+            minDist = min(minDist, distToOrigin);
+            minDistCross = min(minDistCross, min(abs(z.x), abs(z.y)));
+            
+            float magSq = dot(z, z);
+            if (magSq > 256.0) {
+                float log_zn = log(magSq) / 2.0;
+                float nu = log(log_zn / log(2.0)) / log(u_power);
+                iterations = float(i) + 1.0 - nu;
+                break;
+            }
+            
+            iterations = float(i);
         }
-        
-        iterations = float(i);
     }
     
     // Calculate distance estimate
@@ -224,14 +343,12 @@ void main() {
     // Select orbit trap value based on coloring mode
     float orbitTrap = minDist;
     if (u_coloringMode > 1.5) {
-        orbitTrap = minDistCross;  // Cross trap
+        orbitTrap = minDistCross;
     }
     
-    // Interior coloring value - based on final orbit characteristics
-    // This creates interesting patterns inside the set
+    // Interior coloring value
     float interiorValue = 0.0;
     if (iterations >= u_maxIter - 0.5) {
-        // Use the angle of the final z position for interior coloring
         float angle = atan(z.y, z.x);
         interiorValue = mod(angle / 3.14159 + 1.0, 1.0) * 0.5 + minDist * 0.5;
     }
@@ -247,6 +364,7 @@ void main() {
 export const UNIFORM_NAMES = [
   'u_resolution',
   'u_center',
+  'u_centerLow',
   'u_zoom',
   'u_power',
   'u_maxIter',
@@ -256,7 +374,8 @@ export const UNIFORM_NAMES = [
   'u_burningShip',
   'u_juliaMode',
   'u_juliaC',
-  'u_coloringMode'
+  'u_coloringMode',
+  'u_useDoublePrecision'
 ];
 
 /**

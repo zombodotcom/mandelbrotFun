@@ -135,8 +135,23 @@ export class WebGLRenderer {
     const gl = this._gl;
     const u = this._uniforms;
     
+    // Split center coordinates into high and low parts for double-double precision
+    // This allows deep zooms up to ~10^14 with full precision
+    const splitDouble = (value) => {
+      const hi = value;
+      const lo = value - hi; // Capture the residual
+      return [hi, lo];
+    };
+    
+    const [centerXHi, centerXLo] = splitDouble(state.centerX);
+    const [centerYHi, centerYLo] = splitDouble(state.centerY);
+    
+    // Enable double precision for deep zooms (zoom > 1e6)
+    const useDoublePrecision = state.zoom > 1e6 ? 1.0 : 0.0;
+    
     gl.uniform2f(u.u_resolution, state.width, state.height);
-    gl.uniform2f(u.u_center, state.centerX, state.centerY);
+    gl.uniform2f(u.u_center, centerXHi, centerYHi);
+    gl.uniform2f(u.u_centerLow, centerXLo, centerYLo);
     gl.uniform1f(u.u_zoom, state.zoom);
     gl.uniform1f(u.u_power, state.power);
     gl.uniform1f(u.u_maxIter, state.maxIter);
@@ -147,6 +162,7 @@ export class WebGLRenderer {
     gl.uniform1f(u.u_juliaMode, state.juliaMode ? 1.0 : 0.0);
     gl.uniform2f(u.u_juliaC, state.juliaC[0], state.juliaC[1]);
     gl.uniform1f(u.u_coloringMode, state.coloringMode || 0);
+    gl.uniform1f(u.u_useDoublePrecision, useDoublePrecision);
   }
 
   /**
