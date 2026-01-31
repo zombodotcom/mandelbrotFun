@@ -180,47 +180,46 @@ export class AnimationController {
   _createZoomAnimation() {
     let direction = 1;
     
-    // Misiurewicz points and boundary points - these have infinite detail
-    // and are guaranteed to be on the boundary (not inside the set)
+    // Carefully selected coordinates in spiral/detail-rich regions
+    // These are slightly outside the set, in areas with beautiful spirals
     const ZOOM_TARGETS = [
-      { x: -0.75, y: 0.0 },               // Cusp of main cardioid (boundary)
-      { x: -0.1011, y: 0.9563 },          // Spiral arm (boundary)
-      { x: -1.7548776662466927, y: 0.0 }, // Feigenbaum point (boundary)
-      { x: 0.0, y: 1.0 },                 // Top of the set (boundary)
-      { x: -1.0, y: 0.0 }                 // Left junction point (boundary)
+      { x: -0.743643135, y: 0.131825963 },   // Seahorse valley spiral
+      { x: -0.7453, y: 0.1127 },             // Double spiral
+      { x: -0.16, y: 1.0405 },               // Elephant trunk spiral  
+      { x: -0.235125, y: 0.827215 },         // Lightning bolt region
+      { x: -0.749, y: 0.032 },               // Tendril region
+      { x: -1.25617, y: 0.38017 },           // Antenna spiral
+      { x: -0.558, y: 0.6427 },              // Valley spiral
+      { x: 0.285, y: 0.013 }                 // East valley detail
     ];
     
-    // Pick a random target if we're near default view
-    const currentX = this._state.get('centerX');
-    const currentY = this._state.get('centerY');
+    // Always pick a good target when starting zoom
     const currentZoom = this._state.get('zoom');
-    const isDefaultView = currentZoom < 5 && Math.abs(currentX + 0.5) < 0.3 && Math.abs(currentY) < 0.3;
     
-    if (isDefaultView) {
+    if (currentZoom < 10) {
       const target = ZOOM_TARGETS[Math.floor(Math.random() * ZOOM_TARGETS.length)];
-      this._state.update({ centerX: target.x, centerY: target.y });
+      this._state.update({ centerX: target.x, centerY: target.y, zoom: 5 });
     }
     
     const intervalId = setInterval(() => {
       const zoom = this._state.get('zoom');
-      const zoomFactor = 1 + 0.012 * direction * this._speed;
+      const zoomFactor = 1 + 0.015 * direction * this._speed;
       const newZoom = zoom * zoomFactor;
       
       // Auto-scale iterations with zoom depth for more detail
-      const baseIterations = 256;
+      const baseIterations = 300;
       const zoomDepth = Math.log10(Math.max(1, newZoom));
-      const scaledIterations = Math.min(800, Math.floor(baseIterations + zoomDepth * 50));
+      const scaledIterations = Math.min(1000, Math.floor(baseIterations + zoomDepth * 60));
       
-      // Limit zoom to avoid precision issues (10^7 is safe for 32-bit float shaders)
-      // Reverse direction at limits
-      if (newZoom > 1e7) direction = -1;
-      if (newZoom < 0.5) direction = 1;
+      // Limit zoom to avoid precision issues
+      if (newZoom > 5e6) direction = -1;
+      if (newZoom < 1) direction = 1;
       
       this._state.update({ 
         zoom: newZoom,
         maxIterations: scaledIterations
       });
-    }, 50);
+    }, 40);
     
     return { intervalId, direction };
   }
