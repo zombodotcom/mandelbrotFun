@@ -24,7 +24,7 @@ export const DEFAULT_STATE = {
   
   // Quality settings
   qualityPreset: 'normal', // draft, normal, high, ultra
-  autoScaleIterations: true
+  autoScaleIterations: true,
   
   // Fractal variants
   burningShip: false,
