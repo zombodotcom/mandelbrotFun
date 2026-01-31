@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandelbrot WebGL Explorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #0f0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px #0f0;
+            font-size: 2.2em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #0a0;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+        
+        .controls {
+            background: #111;
+            border: 2px solid #0f0;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #0a0;
+        }
+        
+        .control-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .section-title {
+            color: #0f0;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .control-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        label {
+            font-weight: bold;
+            font-size: 11px;
+            color: #0f0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #222;
+            border: 1px solid #0f0;
+            outline: none;
+            border-radius: 3px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #0f0;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #0f0;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #0f0;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #0f0;
+            border: none;
+        }
+        
+        select {
+            background: #000;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        .value-display {
+            color: #0a0;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        
+        button {
+            background: #000;
+            color: #0f0;
+            border: 2px solid #0f0;
+            padding: 10px 20px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+        
+        button:hover {
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 20px #0f0;
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+        
+        button.active {
+            background: #0f0;
+            color: #000;
+            animation: pulse-glow 1s infinite;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px #0f0; }
+            50% { box-shadow: 0 0 40px #0f0, 0 0 60px #0f0; }
+        }
+        
+        .canvas-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        canvas {
+            border: 3px solid #0f0;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+            cursor: crosshair;
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .info-panel {
+            background: #111;
+            border: 2px solid #0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            line-height: 1.8;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #0a0;
+        }
+        
+        .info-label {
+            color: #0a0;
+        }
+        
+        .info-value {
+            color: #0f0;
+            font-weight: bold;
+        }
+        
+        .fps {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .help-text {
+            color: #0a0;
+            font-size: 11px;
+            margin-top: 8px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ MANDELBROT WebGL EXPLORER ⚡</h1>
+        <div class="subtitle">GPU-accelerated fractal rendering with real-time animations • 60+ FPS</div>
+        
+        <div class="controls">
+            <!-- FORMULA SECTION -->
+            <div class="control-section">
+                <div class="section-title">⚡ Formula: z^n + c</div>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Power (n)</label>
+                        <input type="range" id="power" min="2" max="12" value="2" step="0.1">
+                        <div class="value-display">z^<span id="powerValue">2.0</span> + c</div>
+                        <div class="help-text">Classic = 2, try 3, 4, 5...</div>
+                    </div>
+                    <div class="control-item">
+                        <label>Max Iterations</label>
+                        <input type="range" id="maxIter" min="50" max="1000" value="256" step="1">
+                        <div class="value-display"><span id="maxIterValue">256</span> iterations</div>
+                        <div class="help-text">GPU can handle way more!</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- NUMBER BASE SECTION -->
+            <div class="control-section">
+                <div class="section-title">🔢 Number Base System</div>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Visualization Base</label>
+                        <select id="numberBase">
+                            <option value="2">Binary (Base-2)</option>
+                            <option value="3">Ternary (Base-3)</option>
+                            <option value="4">Quaternary (Base-4)</option>
+                            <option value="5">Quinary (Base-5)</option>
+                            <option value="6">Senary (Base-6)</option>
+                            <option value="8">Octal (Base-8)</option>
+                            <option value="10" selected>Decimal (Base-10)</option>
+                            <option value="12">Dozenal (Base-12)</option>
+                            <option value="16">Hexadecimal (Base-16)</option>
+                            <option value="32">Base-32</option>
+                            <option value="60">Sexagesimal (Base-60)</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>Color Scheme</label>
+                        <select id="colorScheme">
+                            <option value="0">Rainbow</option>
+                            <option value="1">Fire</option>
+                            <option value="2">Ice</option>
+                            <option value="3" selected>Matrix Green</option>
+                            <option value="4">Purple Haze</option>
+                            <option value="5">Electric Blue</option>
+                            <option value="6">Lava</option>
+                            <option value="7">Neon</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PRESETS -->
+            <div class="control-section">
+                <div class="section-title">🎯 Presets</div>
+                <div class="button-group">
+                    <button onclick="loadPreset('classic')">Classic (z²)</button>
+                    <button onclick="loadPreset('cubic')">Cubic (z³)</button>
+                    <button onclick="loadPreset('quartic')">Quartic (z⁴)</button>
+                    <button onclick="loadPreset('burning')">Burning Ship</button>
+                    <button onclick="loadPreset('seahorse')">Seahorse</button>
+                    <button onclick="loadPreset('elephant')">Elephant</button>
+                    <button onclick="loadPreset('spiral')">Spiral</button>
+                    <button onclick="resetView()">🏠 Reset</button>
+                </div>
+            </div>
+            
+            <!-- ANIMATIONS -->
+            <div class="control-section">
+                <div class="section-title">🎬 Animations (Real-time GPU!)</div>
+                <div class="button-group">
+                    <button onclick="toggleAnimation('zoom')" id="btnZoom">🔍 Auto Zoom</button>
+                    <button onclick="toggleAnimation('rotate')" id="btnRotate">🌈 Cycle Colors</button>
+                    <button onclick="toggleAnimation('morph')" id="btnMorph">⚡ Morph Power</button>
+                    <button onclick="toggleAnimation('base')" id="btnBase">🔢 Cycle Bases</button>
+                    <button onclick="toggleAnimation('tour')" id="btnTour">🚀 Grand Tour</button>
+                    <button onclick="toggleAnimation('julia')" id="btnJulia">🌀 Julia Morph</button>
+                    <button onclick="stopAllAnimations()">⏹️ Stop All</button>
+                </div>
+                <div class="control-item" style="margin-top: 10px;">
+                    <label>Animation Speed</label>
+                    <input type="range" id="animSpeed" min="1" max="10" value="5" step="1">
+                    <div class="value-display"><span id="animSpeedValue">5</span> / 10</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="glCanvas" width="1200" height="900"></canvas>
+            <div class="fps">FPS: <span id="fpsCounter">60</span></div>
+        </div>
+        
+        <div class="info-panel">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Formula:</span>
+                    <span class="info-value" id="infoFormula">z² + c</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Number Base:</span>
+                    <span class="info-value" id="infoBase">10 (Decimal)</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Center:</span>
+                    <span class="info-value" id="infoCenter">(-0.5, 0)</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Zoom:</span>
+                    <span class="info-value" id="infoZoom">1.0x</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Rendering:</span>
+                    <span class="info-value">WebGL GPU Shaders</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Animation:</span>
+                    <span class="info-value" id="infoAnim">None</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        
+        if (!gl) {
+            alert('WebGL not supported!');
+        }
+        
+        // Shader state
+        let centerX = -0.5;
+        let centerY = 0.0;
+        let zoom = 1.0;
+        let power = 2.0;
+        let maxIter = 256;
+        let numberBase = 10;
+        let colorScheme = 3;
+        let colorOffset = 0.0;
+        let burningShip = 0.0;
+        let juliaMode = 0.0;
+        let juliaC = [-0.4, 0.6];
+        
+        // Animation state
+        let animations = {
+            zoom: null,
+            rotate: null,
+            morph: null,
+            base: null,
+            tour: null,
+            julia: null
+        };
+        
+        const bases = [2, 3, 4, 5, 6, 8, 10, 12, 16, 32, 60];
+        
+        const tourStops = [
+            { x: -0.5, y: 0, z: 1, name: 'Classic' },
+            { x: -0.7, y: 0, z: 4, name: 'Body' },
+            { x: -0.235125, y: 0.827215, z: 100, name: 'Spiral' },
+            { x: 0.285, y: 0.01, z: 300, name: 'Seahorse' },
+            { x: -0.743643887037151, y: 0.131825904205330, z: 1000, name: 'Detail' },
+            { x: -0.16, y: 1.0405, z: 20, name: 'Elephant' },
+        ];
+        
+        // Vertex shader (simple fullscreen quad)
+        const vertexShaderSource = `
+            attribute vec2 position;
+            void main() {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        `;
+        
+        // Fragment shader (THE MAGIC!)
+        const fragmentShaderSource = `
+            precision mediump float;
+            
+            uniform vec2 u_resolution;
+            uniform vec2 u_center;
+            uniform float u_zoom;
+            uniform float u_power;
+            uniform float u_maxIter;
+            uniform float u_base;
+            uniform float u_colorScheme;
+            uniform float u_colorOffset;
+            uniform float u_burningShip;
+            uniform float u_juliaMode;
+            uniform vec2 u_juliaC;
+            
+            vec3 hsl2rgb(float h, float s, float l) {
+                float c = (1.0 - abs(2.0 * l - 1.0)) * s;
+                float x = c * (1.0 - abs(mod(h * 6.0, 2.0) - 1.0));
+                float m = l - c / 2.0;
+                
+                vec3 rgb;
+                if (h < 1.0/6.0) rgb = vec3(c, x, 0.0);
+                else if (h < 2.0/6.0) rgb = vec3(x, c, 0.0);
+                else if (h < 3.0/6.0) rgb = vec3(0.0, c, x);
+                else if (h < 4.0/6.0) rgb = vec3(0.0, x, c);
+                else if (h < 5.0/6.0) rgb = vec3(x, 0.0, c);
+                else rgb = vec3(c, 0.0, x);
+                
+                return rgb + m;
+            }
+            
+            vec2 complexPower(vec2 z, float n) {
+                if (abs(n - 2.0) < 0.01) {
+                    return vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y);
+                }
+                
+                float r = length(z);
+                float theta = atan(z.y, z.x);
+                float newR = pow(r, n);
+                float newTheta = n * theta;
+                return vec2(newR * cos(newTheta), newR * sin(newTheta));
+            }
+            
+            vec3 getColor(float iterations, float maxIterations, float base, float scheme, float offset) {
+                if (iterations >= maxIterations - 0.5) {
+                    return vec3(0.0, 0.0, 0.0);
+                }
+                
+                float baseValue = mod(iterations + offset, base);
+                float baseFraction = baseValue / base;
+                float t = iterations / maxIterations;
+                
+                vec3 color;
+                
+                if (scheme < 0.5) { // Rainbow
+                    float hue = mod(baseFraction + t + offset/100.0, 1.0);
+                    color = hsl2rgb(hue, 1.0, 0.5);
+                } else if (scheme < 1.5) { // Fire
+                    color = vec3(t, 0.8 * baseFraction, 0.2 * (1.0 - t));
+                } else if (scheme < 2.5) { // Ice
+                    color = vec3(0.2 * baseFraction, 0.6 * t, 0.5 + 0.5 * baseFraction);
+                } else if (scheme < 3.5) { // Matrix
+                    color = vec3(0.0, 0.3 + 0.7 * baseFraction, 0.4 * t);
+                } else if (scheme < 4.5) { // Purple
+                    color = vec3(0.8 * baseFraction, 0.2 * t, 0.5 + 0.5 * baseFraction);
+                } else if (scheme < 5.5) { // Electric Blue
+                    color = vec3(0.1 * baseFraction, 0.5 * t, 0.8 + 0.2 * baseFraction);
+                } else if (scheme < 6.5) { // Lava
+                    color = vec3(0.9 * t, 0.3 * baseFraction, 0.1);
+                } else { // Neon
+                    float hue = mod(baseFraction * 3.0 + offset/50.0, 1.0);
+                    color = hsl2rgb(hue, 1.0, 0.5 + 0.3 * sin(t * 10.0));
+                }
+                
+                return color;
+            }
+            
+            void main() {
+                vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+                uv = (uv - 0.5) * 2.0;
+                uv.x *= u_resolution.x / u_resolution.y;
+                
+                vec2 c = u_center + uv * 2.0 / u_zoom;
+                
+                vec2 z;
+                if (u_juliaMode > 0.5) {
+                    z = c;
+                    c = u_juliaC;
+                } else {
+                    z = vec2(0.0, 0.0);
+                }
+                
+                float iterations = 0.0;
+                
+                for (int i = 0; i < 1000; i++) {
+                    if (float(i) >= u_maxIter) break;
+                    
+                    if (u_burningShip > 0.5) {
+                        z = abs(z);
+                    }
+                    
+                    z = complexPower(z, u_power) + c;
+                    
+                    if (dot(z, z) > 4.0) {
+                        iterations = float(i);
+                        break;
+                    }
+                    
+                    iterations = float(i);
+                }
+                
+                vec3 color = getColor(iterations, u_maxIter, u_base, u_colorScheme, u_colorOffset);
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+        
+        // Compile shader
+        function compileShader(source, type) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+        
+        // Create program
+        const vertexShader = compileShader(vertexShaderSource, gl.VERTEX_SHADER);
+        const fragmentShader = compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
+        
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            console.error('Program link error:', gl.getProgramInfoLog(program));
+        }
+        
+        gl.useProgram(program);
+        
+        // Setup fullscreen quad
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -1, -1,
+             1, -1,
+            -1,  1,
+             1,  1
+        ]), gl.STATIC_DRAW);
+        
+        const positionLocation = gl.getAttribLocation(program, 'position');
+        gl.enableVertexAttribArray(positionLocation);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        
+        // Get uniform locations
+        const uniforms = {
+            resolution: gl.getUniformLocation(program, 'u_resolution'),
+            center: gl.getUniformLocation(program, 'u_center'),
+            zoom: gl.getUniformLocation(program, 'u_zoom'),
+            power: gl.getUniformLocation(program, 'u_power'),
+            maxIter: gl.getUniformLocation(program, 'u_maxIter'),
+            base: gl.getUniformLocation(program, 'u_base'),
+            colorScheme: gl.getUniformLocation(program, 'u_colorScheme'),
+            colorOffset: gl.getUniformLocation(program, 'u_colorOffset'),
+            burningShip: gl.getUniformLocation(program, 'u_burningShip'),
+            juliaMode: gl.getUniformLocation(program, 'u_juliaMode'),
+            juliaC: gl.getUniformLocation(program, 'u_juliaC')
+        };
+        
+        // FPS counter
+        let lastTime = performance.now();
+        let frameCount = 0;
+        
+        // Render loop
+        function render() {
+            // Update uniforms
+            gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
+            gl.uniform2f(uniforms.center, centerX, centerY);
+            gl.uniform1f(uniforms.zoom, zoom);
+            gl.uniform1f(uniforms.power, power);
+            gl.uniform1f(uniforms.maxIter, maxIter);
+            gl.uniform1f(uniforms.base, numberBase);
+            gl.uniform1f(uniforms.colorScheme, colorScheme);
+            gl.uniform1f(uniforms.colorOffset, colorOffset);
+            gl.uniform1f(uniforms.burningShip, burningShip);
+            gl.uniform1f(uniforms.juliaMode, juliaMode);
+            gl.uniform2f(uniforms.juliaC, juliaC[0], juliaC[1]);
+            
+            // Draw
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            
+            // FPS
+            frameCount++;
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                document.getElementById('fpsCounter').textContent = frameCount;
+                frameCount = 0;
+                lastTime = now;
+            }
+            
+            requestAnimationFrame(render);
+        }
+        
+        // UI Controls
+        document.getElementById('power').addEventListener('input', (e) => {
+            power = parseFloat(e.target.value);
+            document.getElementById('powerValue').textContent = power.toFixed(1);
+            updateInfo();
+        });
+        
+        document.getElementById('maxIter').addEventListener('input', (e) => {
+            maxIter = parseInt(e.target.value);
+            document.getElementById('maxIterValue').textContent = maxIter;
+        });
+        
+        document.getElementById('numberBase').addEventListener('change', (e) => {
+            numberBase = parseInt(e.target.value);
+            updateInfo();
+        });
+        
+        document.getElementById('colorScheme').addEventListener('change', (e) => {
+            colorScheme = parseInt(e.target.value);
+        });
+        
+        document.getElementById('animSpeed').addEventListener('input', (e) => {
+            document.getElementById('animSpeedValue').textContent = e.target.value;
+        });
+        
+        function updateInfo() {
+            document.getElementById('infoFormula').textContent = `z^${power.toFixed(1)} + c`;
+            const baseNames = {2: 'Binary', 3: 'Ternary', 4: 'Quaternary', 5: 'Quinary',
+                6: 'Senary', 8: 'Octal', 10: 'Decimal', 12: 'Dozenal',
+                16: 'Hexadecimal', 32: 'Base-32', 60: 'Sexagesimal'};
+            document.getElementById('infoBase').textContent = `${numberBase} (${baseNames[numberBase]})`;
+            document.getElementById('infoCenter').textContent = `(${centerX.toFixed(6)}, ${centerY.toFixed(6)})`;
+            document.getElementById('infoZoom').textContent = `${zoom.toFixed(2)}x`;
+        }
+        
+        function loadPreset(preset) {
+            burningShip = 0.0;
+            juliaMode = 0.0;
+            
+            switch(preset) {
+                case 'classic':
+                    power = 2; centerX = -0.5; centerY = 0; zoom = 1.0;
+                    break;
+                case 'cubic':
+                    power = 3; centerX = 0; centerY = 0; zoom = 1.0;
+                    break;
+                case 'quartic':
+                    power = 4; centerX = 0; centerY = 0; zoom = 1.0;
+                    break;
+                case 'burning':
+                    power = 2; burningShip = 1.0; centerX = -0.5; centerY = -0.5; zoom = 1.0;
+                    break;
+                case 'seahorse':
+                    power = 2; centerX = 0.285; centerY = 0.01; zoom = 300;
+                    break;
+                case 'elephant':
+                    power = 2; centerX = -0.16; centerY = 1.0405; zoom = 20;
+                    break;
+                case 'spiral':
+                    power = 2; centerX = -0.743643887037151; centerY = 0.131825904205330; zoom = 1000;
+                    break;
+            }
+            
+            document.getElementById('power').value = power;
+            document.getElementById('powerValue').textContent = power.toFixed(1);
+            updateInfo();
+        }
+        
+        function resetView() {
+            centerX = -0.5; centerY = 0; zoom = 1.0;
+            burningShip = 0.0; juliaMode = 0.0;
+            updateInfo();
+        }
+        
+        function toggleAnimation(type) {
+            const speed = parseInt(document.getElementById('animSpeed').value);
+            const btn = document.getElementById(`btn${type.charAt(0).toUpperCase() + type.slice(1)}`);
+            
+            if (animations[type]) {
+                clearInterval(animations[type]);
+                animations[type] = null;
+                btn.classList.remove('active');
+                updateAnimInfo();
+                return;
+            }
+            
+            btn.classList.add('active');
+            
+            switch(type) {
+                case 'zoom':
+                    let zoomDir = 1;
+                    animations.zoom = setInterval(() => {
+                        zoom *= (1 + 0.02 * zoomDir);
+                        if (zoom > 1000) zoomDir = -1;
+                        if (zoom < 1) zoomDir = 1;
+                        updateInfo();
+                    }, 50 / speed);
+                    break;
+                    
+                case 'rotate':
+                    animations.rotate = setInterval(() => {
+                        colorOffset = (colorOffset + speed * 0.5) % 100;
+                    }, 50);
+                    break;
+                    
+                case 'morph':
+                    let morphDir = 1;
+                    animations.morph = setInterval(() => {
+                        power += 0.05 * morphDir;
+                        if (power > 8) morphDir = -1;
+                        if (power < 2) morphDir = 1;
+                        document.getElementById('power').value = power;
+                        document.getElementById('powerValue').textContent = power.toFixed(1);
+                        updateInfo();
+                    }, 100 / speed);
+                    break;
+                    
+                case 'base':
+                    let baseIndex = 0;
+                    animations.base = setInterval(() => {
+                        baseIndex = (baseIndex + 1) % bases.length;
+                        numberBase = bases[baseIndex];
+                        document.getElementById('numberBase').value = numberBase;
+                        updateInfo();
+                    }, 1000 / speed);
+                    break;
+                    
+                case 'tour':
+                    let tourIndex = 0;
+                    animations.tour = setInterval(() => {
+                        const stop = tourStops[tourIndex];
+                        centerX = stop.x;
+                        centerY = stop.y;
+                        zoom = stop.z;
+                        updateInfo();
+                        tourIndex = (tourIndex + 1) % tourStops.length;
+                    }, 3000 / speed);
+                    break;
+                    
+                case 'julia':
+                    let juliaAngle = 0;
+                    animations.julia = setInterval(() => {
+                        juliaMode = 1.0;
+                        juliaAngle += 0.01 * speed;
+                        juliaC[0] = 0.7885 * Math.cos(juliaAngle);
+                        juliaC[1] = 0.7885 * Math.sin(juliaAngle);
+                    }, 50);
+                    break;
+            }
+            
+            updateAnimInfo();
+        }
+        
+        function stopAllAnimations() {
+            for (let key in animations) {
+                if (animations[key]) {
+                    clearInterval(animations[key]);
+                    animations[key] = null;
+                    const btn = document.getElementById(`btn${key.charAt(0).toUpperCase() + key.slice(1)}`);
+                    if (btn) btn.classList.remove('active');
+                }
+            }
+            juliaMode = 0.0;
+            updateAnimInfo();
+        }
+        
+        function updateAnimInfo() {
+            const active = [];
+            for (let key in animations) {
+                if (animations[key]) active.push(key);
+            }
+            document.getElementById('infoAnim').textContent = active.length > 0 ? active.join(', ') : 'None';
+        }
+        
+        // Mouse interaction
+        let isDragging = false;
+        let lastMouseX, lastMouseY;
+        
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+            
+            const scale = 4.0 / (zoom * Math.min(canvas.width, canvas.height));
+            centerX -= dx * scale;
+            centerY += dy * scale;
+            
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            updateInfo();
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            zoom *= zoomFactor;
+            updateInfo();
+        });
+        
+        canvas.addEventListener('click', (e) => {
+            if (isDragging) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const px = e.clientX - rect.left;
+            const py = e.clientY - rect.top;
+            
+            const scale = 4.0 / (zoom * Math.min(canvas.width, canvas.height));
+            const clickX = centerX + (px - canvas.width / 2) * scale;
+            const clickY = centerY + (py - canvas.height / 2) * scale;
+            
+            centerX = clickX;
+            centerY = clickY;
+            zoom *= e.shiftKey ? 0.5 : 2;
+            
+            updateInfo();
+        });
+        
+        // Start
+        updateInfo();
+        render();
+    </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandelbrot WebGL Explorer</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div class="container">
+        <h1>MANDELBROT WebGL EXPLORER</h1>
+        <div class="subtitle">GPU-accelerated fractal rendering with real-time animations - 60+ FPS</div>
+        
+        <div class="controls">
+            <!-- FORMULA SECTION -->
+            <div class="control-section">
+                <div class="section-title">Formula: z^n + c</div>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Power (n)</label>
+                        <input type="range" id="power" min="2" max="12" value="2" step="0.1">
+                        <div class="value-display">z^<span id="powerValue">2.0</span> + c</div>
+                        <div class="help-text">Classic = 2, try 3, 4, 5...</div>
+                    </div>
+                    <div class="control-item">
+                        <label>Max Iterations</label>
+                        <input type="range" id="maxIter" min="50" max="1000" value="256" step="1">
+                        <div class="value-display"><span id="maxIterValue">256</span> iterations</div>
+                        <div class="help-text">GPU can handle way more!</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- NUMBER BASE SECTION -->
+            <div class="control-section">
+                <div class="section-title">Number Base System</div>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Visualization Base</label>
+                        <select id="numberBase">
+                            <option value="2">Binary (Base-2)</option>
+                            <option value="3">Ternary (Base-3)</option>
+                            <option value="4">Quaternary (Base-4)</option>
+                            <option value="5">Quinary (Base-5)</option>
+                            <option value="6">Senary (Base-6)</option>
+                            <option value="8">Octal (Base-8)</option>
+                            <option value="10" selected>Decimal (Base-10)</option>
+                            <option value="12">Dozenal (Base-12)</option>
+                            <option value="16">Hexadecimal (Base-16)</option>
+                            <option value="32">Base-32</option>
+                            <option value="60">Sexagesimal (Base-60)</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>Color Scheme</label>
+                        <select id="colorScheme">
+                            <option value="0">Rainbow</option>
+                            <option value="1">Fire</option>
+                            <option value="2">Ice</option>
+                            <option value="3" selected>Matrix Green</option>
+                            <option value="4">Purple Haze</option>
+                            <option value="5">Electric Blue</option>
+                            <option value="6">Lava</option>
+                            <option value="7">Neon</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PRESETS -->
+            <div class="control-section">
+                <div class="section-title">Presets</div>
+                <div class="button-group">
+                    <button onclick="loadPreset('classic')">Classic (z^2)</button>
+                    <button onclick="loadPreset('cubic')">Cubic (z^3)</button>
+                    <button onclick="loadPreset('quartic')">Quartic (z^4)</button>
+                    <button onclick="loadPreset('burning')">Burning Ship</button>
+                    <button onclick="loadPreset('seahorse')">Seahorse</button>
+                    <button onclick="loadPreset('elephant')">Elephant</button>
+                    <button onclick="loadPreset('spiral')">Spiral</button>
+                    <button onclick="loadPreset('juliaClassic')">Julia Set</button>
+                    <button onclick="resetView()">Reset View</button>
+                </div>
+            </div>
+            
+            <!-- ANIMATIONS -->
+            <div class="control-section">
+                <div class="section-title">Animations (Real-time GPU!)</div>
+                <div class="button-group">
+                    <button onclick="toggleAnimation('zoom')" id="btnZoom">Auto Zoom</button>
+                    <button onclick="toggleAnimation('rotate')" id="btnRotate">Cycle Colors</button>
+                    <button onclick="toggleAnimation('morph')" id="btnMorph">Morph Power</button>
+                    <button onclick="toggleAnimation('base')" id="btnBase">Cycle Bases</button>
+                    <button onclick="toggleAnimation('tour')" id="btnTour">Grand Tour</button>
+                    <button onclick="toggleAnimation('julia')" id="btnJulia">Julia Morph</button>
+                    <button onclick="stopAllAnimations()">Stop All</button>
+                </div>
+                <div class="control-item mt-10">
+                    <label>Animation Speed</label>
+                    <input type="range" id="animSpeed" min="1" max="10" value="5" step="1">
+                    <div class="value-display"><span id="animSpeedValue">5</span> / 10</div>
+                </div>
+            </div>
+            
+            <!-- EXPORT -->
+            <div class="control-section">
+                <div class="section-title">Export & Share</div>
+                <div class="button-group">
+                    <button onclick="downloadImage()">Download Image</button>
+                    <button onclick="shareURL()">Copy Share URL</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="glCanvas" width="1200" height="900"></canvas>
+            <div class="fps">FPS: <span id="fpsCounter">60</span></div>
+        </div>
+        
+        <div class="info-panel">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Formula:</span>
+                    <span class="info-value" id="infoFormula">z^2 + c</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Number Base:</span>
+                    <span class="info-value" id="infoBase">10 (Decimal)</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Center:</span>
+                    <span class="info-value" id="infoCenter">(-0.5, 0)</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Zoom:</span>
+                    <span class="info-value" id="infoZoom">1.0x</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Rendering:</span>
+                    <span class="info-value">WebGL GPU Shaders</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Animation:</span>
+                    <span class="info-value" id="infoAnim">None</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-panel mt-10">
+            <div class="section-title">Controls</div>
+            <div class="help-text">
+                <strong>Click:</strong> Zoom in at point | 
+                <strong>Shift+Click:</strong> Zoom out | 
+                <strong>Drag:</strong> Pan around | 
+                <strong>Mouse Wheel:</strong> Zoom in/out
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
