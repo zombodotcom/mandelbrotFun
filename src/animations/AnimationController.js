@@ -178,50 +178,66 @@ export class AnimationController {
    * @private
    */
   _createZoomAnimation() {
-    let direction = 1;
-    
-    // Carefully selected coordinates in spiral/detail-rich regions
-    // These are slightly outside the set, in areas with beautiful spirals
+    // Carefully tested coordinates with spirals visible at moderate zoom
     const ZOOM_TARGETS = [
-      { x: -0.743643135, y: 0.131825963 },   // Seahorse valley spiral
-      { x: -0.7453, y: 0.1127 },             // Double spiral
-      { x: -0.16, y: 1.0405 },               // Elephant trunk spiral  
-      { x: -0.235125, y: 0.827215 },         // Lightning bolt region
-      { x: -0.749, y: 0.032 },               // Tendril region
-      { x: -1.25617, y: 0.38017 },           // Antenna spiral
-      { x: -0.558, y: 0.6427 },              // Valley spiral
-      { x: 0.285, y: 0.013 }                 // East valley detail
+      { x: -0.743643135, y: 0.131825963, maxZoom: 5000 },    // Seahorse valley
+      { x: -0.7453, y: 0.1127, maxZoom: 3000 },              // Double spiral
+      { x: -0.16, y: 1.0405, maxZoom: 2000 },                // Top spiral
+      { x: -0.235125, y: 0.827215, maxZoom: 4000 },          // Lightning region
+      { x: -0.749, y: 0.032, maxZoom: 1500 },                // Tendril
+      { x: -1.25617, y: 0.38017, maxZoom: 2500 },            // Antenna spiral
+      { x: -0.558, y: 0.6427, maxZoom: 2000 },               // Valley spiral
+      { x: 0.275, y: 0.007, maxZoom: 3000 },                 // Elephant valley
+      { x: -0.745428, y: 0.113009, maxZoom: 8000 },          // Deep seahorse
+      { x: -1.768778833, y: -0.001738996, maxZoom: 2000 }    // Antenna tip
     ];
     
-    // Always pick a good target when starting zoom
-    const currentZoom = this._state.get('zoom');
+    let targetIndex = Math.floor(Math.random() * ZOOM_TARGETS.length);
+    let target = ZOOM_TARGETS[targetIndex];
+    let direction = 1;
     
-    if (currentZoom < 10) {
-      const target = ZOOM_TARGETS[Math.floor(Math.random() * ZOOM_TARGETS.length)];
-      this._state.update({ centerX: target.x, centerY: target.y, zoom: 5 });
-    }
+    // Start at first target
+    this._state.update({ 
+      centerX: target.x, 
+      centerY: target.y, 
+      zoom: 2,
+      maxIterations: 300
+    });
     
     const intervalId = setInterval(() => {
       const zoom = this._state.get('zoom');
-      const zoomFactor = 1 + 0.015 * direction * this._speed;
+      const zoomFactor = 1 + 0.02 * direction * this._speed;
       const newZoom = zoom * zoomFactor;
       
-      // Auto-scale iterations with zoom depth for more detail
-      const baseIterations = 300;
+      // Scale iterations with zoom
+      const baseIterations = 256;
       const zoomDepth = Math.log10(Math.max(1, newZoom));
-      const scaledIterations = Math.min(1000, Math.floor(baseIterations + zoomDepth * 60));
+      const scaledIterations = Math.min(600, Math.floor(baseIterations + zoomDepth * 40));
       
-      // Limit zoom to avoid precision issues
-      if (newZoom > 5e6) direction = -1;
-      if (newZoom < 1) direction = 1;
+      // When we hit max zoom for this target, switch to next target
+      if (newZoom > target.maxZoom) {
+        targetIndex = (targetIndex + 1) % ZOOM_TARGETS.length;
+        target = ZOOM_TARGETS[targetIndex];
+        this._state.update({ 
+          centerX: target.x, 
+          centerY: target.y, 
+          zoom: 2,
+          maxIterations: 300
+        });
+        return;
+      }
+      
+      if (newZoom < 1) {
+        direction = 1;
+      }
       
       this._state.update({ 
         zoom: newZoom,
         maxIterations: scaledIterations
       });
-    }, 40);
+    }, 35);
     
-    return { intervalId, direction };
+    return { intervalId, targetIndex };
   }
 
   /**
