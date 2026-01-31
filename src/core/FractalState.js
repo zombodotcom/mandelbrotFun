@@ -18,7 +18,7 @@ export const DEFAULT_STATE = {
   
   // Visualization
   numberBase: 10,
-  colorScheme: 3, // Matrix
+  colorScheme: 0, // Rainbow
   colorOffset: 0.0,
   
   // Fractal variants
