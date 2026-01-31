@@ -68,6 +68,25 @@ export class ControlPanel {
       this._bindSelect(e.colorScheme, 'colorScheme', (val) => parseInt(val));
     }
     
+    // Coloring mode select
+    if (e.coloringMode) {
+      this._bindSelect(e.coloringMode, 'coloringMode', (val) => parseInt(val));
+    }
+    
+    // Quality preset select
+    if (e.qualityPreset) {
+      e.qualityPreset.addEventListener('change', (event) => {
+        this._applyQualityPreset(event.target.value);
+      });
+    }
+    
+    // Auto-scale iterations toggle
+    if (e.autoScale) {
+      e.autoScale.addEventListener('change', (event) => {
+        this._state.update({ autoScaleIterations: event.target.value === '1' });
+      });
+    }
+    
     // Animation speed slider
     if (e.animSpeed && this._animController) {
       e.animSpeed.addEventListener('input', (event) => {
@@ -129,12 +148,48 @@ export class ControlPanel {
       case 'power':
         return value.toFixed(1);
       case 'zoom':
-        return value.toFixed(2) + 'x';
+        return this._formatZoom(value);
       case 'centerX':
       case 'centerY':
-        return value.toFixed(6);
+        return this._formatCoordinate(value);
       default:
         return String(value);
+    }
+  }
+
+  /**
+   * Formats a coordinate with appropriate precision
+   * @private
+   */
+  _formatCoordinate(value) {
+    const absValue = Math.abs(value);
+    
+    if (absValue < 0.000001 && absValue !== 0) {
+      return value.toExponential(6);
+    } else if (absValue < 1) {
+      return value.toFixed(12).replace(/0+$/, '').replace(/\.$/, '');
+    } else {
+      return value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
+    }
+  }
+
+  /**
+   * Formats zoom level with readable suffix
+   * @private
+   */
+  _formatZoom(zoom) {
+    if (zoom >= 1e12) {
+      return (zoom / 1e12).toFixed(2) + ' trillion x';
+    } else if (zoom >= 1e9) {
+      return (zoom / 1e9).toFixed(2) + ' billion x';
+    } else if (zoom >= 1e6) {
+      return (zoom / 1e6).toFixed(2) + ' million x';
+    } else if (zoom >= 1e3) {
+      return (zoom / 1e3).toFixed(2) + 'K x';
+    } else if (zoom >= 1) {
+      return zoom.toFixed(1) + 'x';
+    } else {
+      return zoom.toFixed(2) + 'x';
     }
   }
 
@@ -179,6 +234,28 @@ export class ControlPanel {
   stopAllAnimations() {
     if (this._animController) {
       this._animController.stopAll();
+    }
+  }
+
+  /**
+   * Applies a quality preset
+   * @param {string} preset - Quality preset name
+   */
+  _applyQualityPreset(preset) {
+    const presets = {
+      draft: { maxIter: 100 },
+      normal: { maxIter: 256 },
+      high: { maxIter: 500 },
+      ultra: { maxIter: 1000 }
+    };
+    
+    const settings = presets[preset];
+    if (settings) {
+      this._state.update({ 
+        qualityPreset: preset,
+        maxIter: settings.maxIter 
+      });
+      this.syncControls();
     }
   }
 
@@ -230,12 +307,21 @@ export class ControlPanel {
       e.infoBase.textContent = `${state.numberBase} (${baseName})`;
     }
     
+    if (e.infoCenterX) {
+      e.infoCenterX.textContent = this._formatCoordinate(state.centerX);
+    }
+    
+    if (e.infoCenterY) {
+      e.infoCenterY.textContent = this._formatCoordinate(state.centerY);
+    }
+    
+    // Legacy support for combined infoCenter
     if (e.infoCenter) {
-      e.infoCenter.textContent = `(${state.centerX.toFixed(6)}, ${state.centerY.toFixed(6)})`;
+      e.infoCenter.textContent = `(${this._formatCoordinate(state.centerX)}, ${this._formatCoordinate(state.centerY)})`;
     }
     
     if (e.infoZoom) {
-      e.infoZoom.textContent = `${state.zoom.toFixed(2)}x`;
+      e.infoZoom.textContent = this._formatZoom(state.zoom);
     }
     
     // Sync sliders if they changed externally (e.g., from animation)

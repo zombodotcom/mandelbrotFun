@@ -20,6 +20,11 @@ export const DEFAULT_STATE = {
   numberBase: 10,
   colorScheme: 0, // Rainbow
   colorOffset: 0.0,
+  coloringMode: 0, // 0=escape time, 1=distance estimation, 2=orbit trap
+  
+  // Quality settings
+  qualityPreset: 'normal', // draft, normal, high, ultra
+  autoScaleIterations: true
   
   // Fractal variants
   burningShip: false,

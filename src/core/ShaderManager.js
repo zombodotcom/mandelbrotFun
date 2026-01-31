@@ -14,6 +14,7 @@ void main() {
 
 /**
  * Fragment shader source for Mandelbrot rendering
+ * Supports: escape time, distance estimation, orbit traps, 15+ color schemes
  */
 export const FRAGMENT_SHADER_SOURCE = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -33,6 +34,12 @@ uniform float u_colorOffset;
 uniform float u_burningShip;
 uniform float u_juliaMode;
 uniform vec2 u_juliaC;
+uniform float u_coloringMode;  // 0=escape time, 1=distance est, 2=orbit trap
+
+// Complex multiplication
+vec2 complexMul(vec2 a, vec2 b) {
+    return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
 
 vec3 hsl2rgb(float h, float s, float l) {
     float c = (1.0 - abs(2.0 * l - 1.0)) * s;
@@ -62,35 +69,90 @@ vec2 complexPower(vec2 z, float n) {
     return vec2(newR * cos(newTheta), newR * sin(newTheta));
 }
 
-vec3 getColor(float iterations, float maxIterations, float base, float scheme, float offset) {
+// Get color based on scheme (0-19)
+vec3 getColor(float iterations, float maxIterations, float base, float scheme, float offset, float distance, float orbitTrap, float interiorValue) {
+    // Interior coloring - when iterations hit max
     if (iterations >= maxIterations - 0.5) {
-        return vec3(0.0, 0.0, 0.0);
+        // Use interior value (based on final orbit position) for coloring
+        if (interiorValue > 0.01) {
+            // Color interior based on final orbit characteristics
+            float hue = mod(interiorValue * 3.0 + offset / 100.0, 1.0);
+            return hsl2rgb(hue, 0.5, 0.15 + 0.1 * interiorValue);
+        }
+        return vec3(0.0, 0.0, 0.0);  // Default black interior
     }
     
     float baseValue = mod(iterations + offset, base);
     float baseFraction = baseValue / base;
     float t = iterations / maxIterations;
     
-    vec3 color;
+    // Distance-based modifier (for distance estimation mode)
+    float distMod = 1.0 - clamp(distance * u_zoom * 0.5, 0.0, 1.0);
     
-    if (scheme < 0.5) { // Rainbow
+    // Orbit trap modifier
+    float trapMod = clamp(orbitTrap * 2.0, 0.0, 1.0);
+    
+    vec3 color;
+    int schemeInt = int(scheme);
+    
+    // Original schemes (0-7)
+    if (schemeInt == 0) { // Rainbow
         float hue = mod(baseFraction + t + offset/100.0, 1.0);
         color = hsl2rgb(hue, 1.0, 0.5);
-    } else if (scheme < 1.5) { // Fire
-        color = vec3(t, 0.8 * baseFraction, 0.2 * (1.0 - t));
-    } else if (scheme < 2.5) { // Ice
-        color = vec3(0.2 * baseFraction, 0.6 * t, 0.5 + 0.5 * baseFraction);
-    } else if (scheme < 3.5) { // Matrix
+    } else if (schemeInt == 1) { // Fire
+        color = vec3(min(1.0, t * 1.5), baseFraction * 0.7, 0.2 * (1.0 - t));
+    } else if (schemeInt == 2) { // Ice
+        color = vec3(0.2 * baseFraction, 0.5 + 0.3 * t, 0.7 + 0.3 * baseFraction);
+    } else if (schemeInt == 3) { // Matrix Green
         color = vec3(0.0, 0.3 + 0.7 * baseFraction, 0.4 * t);
-    } else if (scheme < 4.5) { // Purple
-        color = vec3(0.8 * baseFraction, 0.2 * t, 0.5 + 0.5 * baseFraction);
-    } else if (scheme < 5.5) { // Electric Blue
-        color = vec3(0.1 * baseFraction, 0.5 * t, 0.8 + 0.2 * baseFraction);
-    } else if (scheme < 6.5) { // Lava
-        color = vec3(0.9 * t, 0.3 * baseFraction, 0.1);
-    } else { // Neon
+    } else if (schemeInt == 4) { // Purple Haze
+        color = vec3(0.6 * baseFraction + 0.2 * t, 0.1 * t, 0.4 + 0.6 * baseFraction);
+    } else if (schemeInt == 5) { // Electric Blue
+        color = vec3(0.1 * baseFraction, 0.4 * t + 0.2, 0.8 + 0.2 * baseFraction);
+    } else if (schemeInt == 6) { // Lava
+        color = vec3(0.9 * t + 0.1, 0.3 * baseFraction, 0.05);
+    } else if (schemeInt == 7) { // Neon
         float hue = mod(baseFraction * 3.0 + offset/50.0, 1.0);
         color = hsl2rgb(hue, 1.0, 0.5 + 0.3 * sin(t * 10.0));
+    }
+    // New schemes (8-19)
+    else if (schemeInt == 8) { // Sunset
+        color = mix(vec3(0.1, 0.0, 0.2), vec3(1.0, 0.5, 0.0), t);
+        color = mix(color, vec3(1.0, 0.9, 0.3), baseFraction);
+    } else if (schemeInt == 9) { // Ocean
+        color = mix(vec3(0.0, 0.1, 0.3), vec3(0.0, 0.6, 0.8), t);
+        color = mix(color, vec3(0.5, 0.9, 1.0), baseFraction * 0.5);
+    } else if (schemeInt == 10) { // Plasma
+        float hue = mod(t * 0.8 + baseFraction * 0.5 + offset/100.0, 1.0);
+        color = hsl2rgb(hue * 0.8 + 0.7, 1.0, 0.4 + 0.2 * baseFraction);
+    } else if (schemeInt == 11) { // Copper
+        color = vec3(0.7 + 0.3 * t, 0.4 + 0.3 * baseFraction, 0.2 * t);
+    } else if (schemeInt == 12) { // Gold
+        color = vec3(0.8 + 0.2 * t, 0.6 + 0.3 * baseFraction, 0.1 + 0.2 * t);
+    } else if (schemeInt == 13) { // Monochrome
+        float v = t * 0.7 + baseFraction * 0.3;
+        color = vec3(v, v, v);
+    } else if (schemeInt == 14) { // Stripes
+        float stripe = mod(iterations * 0.1 + offset * 0.1, 1.0);
+        stripe = step(0.5, stripe);
+        color = mix(vec3(0.1, 0.1, 0.3), vec3(0.9, 0.8, 0.4), stripe);
+    } else if (schemeInt == 15) { // Psychedelic
+        float hue1 = mod(t * 5.0 + offset/20.0, 1.0);
+        float hue2 = mod(baseFraction * 7.0, 1.0);
+        color = hsl2rgb(mod(hue1 + hue2, 1.0), 1.0, 0.5);
+    } else if (schemeInt == 16) { // Forest
+        color = mix(vec3(0.0, 0.2, 0.0), vec3(0.4, 0.8, 0.2), t);
+        color = mix(color, vec3(0.6, 0.5, 0.2), baseFraction * 0.3);
+    } else if (schemeInt == 17) { // Midnight
+        color = mix(vec3(0.0, 0.0, 0.1), vec3(0.2, 0.1, 0.4), t);
+        color += vec3(0.1, 0.1, 0.3) * baseFraction;
+    } else if (schemeInt == 18) { // Distance Glow
+        // Uses distance estimation for glow effect
+        color = hsl2rgb(mod(t + offset/100.0, 1.0), 0.8, 0.3 + 0.4 * distMod);
+    } else { // Orbit Trap (19)
+        // Uses orbit trap value for coloring
+        float hue = mod(trapMod + offset/100.0, 1.0);
+        color = hsl2rgb(hue, 0.9, 0.3 + 0.5 * (1.0 - trapMod));
     }
     
     return color;
@@ -104,6 +166,8 @@ void main() {
     vec2 c = u_center + uv * 2.0 / u_zoom;
     
     vec2 z;
+    vec2 dz = vec2(1.0, 0.0);  // Derivative for distance estimation
+    
     if (u_juliaMode > 0.5) {
         z = c;
         c = u_juliaC;
@@ -112,7 +176,8 @@ void main() {
     }
     
     float iterations = 0.0;
-    float smoothVal = 0.0;
+    float minDist = 1000.0;  // For orbit trap (distance to origin)
+    float minDistCross = 1000.0;  // Distance to axes
     
     for (int i = 0; i < 1000; i++) {
         if (float(i) >= u_maxIter) break;
@@ -121,22 +186,57 @@ void main() {
             z = abs(z);
         }
         
+        // Track derivative for distance estimation: dz = 2*z*dz + 1 (for z^2)
+        if (abs(u_power - 2.0) < 0.01) {
+            dz = 2.0 * complexMul(z, dz) + vec2(1.0, 0.0);
+        } else {
+            // Approximate for other powers
+            dz = u_power * complexMul(complexPower(z, u_power - 1.0), dz) + vec2(1.0, 0.0);
+        }
+        
         z = complexPower(z, u_power) + c;
+        
+        // Orbit trap calculations
+        float distToOrigin = length(z);
+        minDist = min(minDist, distToOrigin);
+        minDistCross = min(minDistCross, min(abs(z.x), abs(z.y)));
         
         float magSq = dot(z, z);
         if (magSq > 256.0) {
-            // Smooth iteration count using continuous potential
+            // Smooth iteration count
             float log_zn = log(magSq) / 2.0;
             float nu = log(log_zn / log(2.0)) / log(u_power);
-            smoothVal = float(i) + 1.0 - nu;
-            iterations = smoothVal;
+            iterations = float(i) + 1.0 - nu;
             break;
         }
         
         iterations = float(i);
     }
     
-    vec3 color = getColor(iterations, u_maxIter, u_base, u_colorScheme, u_colorOffset);
+    // Calculate distance estimate
+    float zMag = length(z);
+    float dzMag = length(dz);
+    float distance = 0.0;
+    if (dzMag > 0.0 && iterations < u_maxIter - 0.5) {
+        distance = log(zMag * zMag) * zMag / dzMag * 0.5;
+    }
+    
+    // Select orbit trap value based on coloring mode
+    float orbitTrap = minDist;
+    if (u_coloringMode > 1.5) {
+        orbitTrap = minDistCross;  // Cross trap
+    }
+    
+    // Interior coloring value - based on final orbit characteristics
+    // This creates interesting patterns inside the set
+    float interiorValue = 0.0;
+    if (iterations >= u_maxIter - 0.5) {
+        // Use the angle of the final z position for interior coloring
+        float angle = atan(z.y, z.x);
+        interiorValue = mod(angle / 3.14159 + 1.0, 1.0) * 0.5 + minDist * 0.5;
+    }
+    
+    vec3 color = getColor(iterations, u_maxIter, u_base, u_colorScheme, u_colorOffset, distance, orbitTrap, interiorValue);
     gl_FragColor = vec4(color, 1.0);
 }
 `;
@@ -155,8 +255,44 @@ export const UNIFORM_NAMES = [
   'u_colorOffset',
   'u_burningShip',
   'u_juliaMode',
-  'u_juliaC'
+  'u_juliaC',
+  'u_coloringMode'
 ];
+
+/**
+ * Color scheme names for UI
+ */
+export const COLOR_SCHEME_NAMES = [
+  'Rainbow',           // 0
+  'Fire',              // 1
+  'Ice',               // 2
+  'Matrix Green',      // 3
+  'Purple Haze',       // 4
+  'Electric Blue',     // 5
+  'Lava',              // 6
+  'Neon',              // 7
+  'Sunset',            // 8
+  'Ocean',             // 9
+  'Plasma',            // 10
+  'Copper',            // 11
+  'Gold',              // 12
+  'Monochrome',        // 13
+  'Stripes',           // 14
+  'Psychedelic',       // 15
+  'Forest',            // 16
+  'Midnight',          // 17
+  'Distance Glow',     // 18
+  'Orbit Trap'         // 19
+];
+
+/**
+ * Coloring modes
+ */
+export const COLORING_MODES = {
+  ESCAPE_TIME: 0,
+  DISTANCE_ESTIMATION: 1,
+  ORBIT_TRAP: 2
+};
 
 /**
  * ShaderManager class

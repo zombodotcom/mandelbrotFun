@@ -146,6 +146,7 @@ export class WebGLRenderer {
     gl.uniform1f(u.u_burningShip, state.burningShip ? 1.0 : 0.0);
     gl.uniform1f(u.u_juliaMode, state.juliaMode ? 1.0 : 0.0);
     gl.uniform2f(u.u_juliaC, state.juliaC[0], state.juliaC[1]);
+    gl.uniform1f(u.u_coloringMode, state.coloringMode || 0);
   }
 
   /**

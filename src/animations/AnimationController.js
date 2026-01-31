@@ -178,23 +178,30 @@ export class AnimationController {
    * @private
    */
   _createZoomAnimation() {
-    // Carefully tested coordinates with spirals visible at moderate zoom
+    // Famous Mandelbrot coordinates with verified spiral/detail structures
     const ZOOM_TARGETS = [
-      { x: -0.743643135, y: 0.131825963, maxZoom: 5000 },    // Seahorse valley
-      { x: -0.7453, y: 0.1127, maxZoom: 3000 },              // Double spiral
-      { x: -0.16, y: 1.0405, maxZoom: 2000 },                // Top spiral
-      { x: -0.235125, y: 0.827215, maxZoom: 4000 },          // Lightning region
-      { x: -0.749, y: 0.032, maxZoom: 1500 },                // Tendril
-      { x: -1.25617, y: 0.38017, maxZoom: 2500 },            // Antenna spiral
-      { x: -0.558, y: 0.6427, maxZoom: 2000 },               // Valley spiral
-      { x: 0.275, y: 0.007, maxZoom: 3000 },                 // Elephant valley
-      { x: -0.745428, y: 0.113009, maxZoom: 8000 },          // Deep seahorse
-      { x: -1.768778833, y: -0.001738996, maxZoom: 2000 }    // Antenna tip
+      { name: 'Seahorse Valley', x: -0.743643135, y: 0.131825963, maxZoom: 5000 },
+      { name: 'Double Spiral', x: -0.7453, y: 0.1127, maxZoom: 3000 },
+      { name: 'Northernmost Point', x: -0.207107867093967, y: 1.122757063632597, maxZoom: 1500 },
+      { name: 'Lightning Bolt', x: -0.235125, y: 0.827215, maxZoom: 4000 },
+      { name: 'Misiurewicz Point', x: -0.1011, y: 0.9563, maxZoom: 2000 },
+      { name: 'Scepter Valley', x: -1.256, y: 0.38, maxZoom: 2500 },
+      { name: 'Satellite Valley', x: -0.1592, y: 1.0317, maxZoom: 2000 },
+      { name: 'Elephant Valley', x: 0.275, y: 0.007, maxZoom: 3000 },
+      { name: 'Deep Seahorse', x: -0.745428, y: 0.113009, maxZoom: 8000 },
+      { name: 'Feigenbaum Region', x: -1.401155189, y: 0.0001, maxZoom: 1000 },
+      { name: 'Triple Spiral', x: -0.04524, y: 0.9868, maxZoom: 2500 },
+      { name: 'Tendril Forest', x: -0.749, y: 0.032, maxZoom: 1500 },
+      { name: 'Deep Dendrite', x: -1.768778833, y: -0.001738996, maxZoom: 2000 },
+      { name: 'Spiral Galaxy', x: -0.761574, y: -0.0847596, maxZoom: 3000 }
     ];
     
     let targetIndex = Math.floor(Math.random() * ZOOM_TARGETS.length);
     let target = ZOOM_TARGETS[targetIndex];
     let direction = 1;
+    
+    // Dispatch event for location label
+    this._currentZoomTarget = target;
     
     // Start at first target
     this._state.update({ 
@@ -212,12 +219,13 @@ export class AnimationController {
       // Scale iterations with zoom
       const baseIterations = 256;
       const zoomDepth = Math.log10(Math.max(1, newZoom));
-      const scaledIterations = Math.min(600, Math.floor(baseIterations + zoomDepth * 40));
+      const scaledIterations = Math.min(700, Math.floor(baseIterations + zoomDepth * 50));
       
       // When we hit max zoom for this target, switch to next target
       if (newZoom > target.maxZoom) {
         targetIndex = (targetIndex + 1) % ZOOM_TARGETS.length;
         target = ZOOM_TARGETS[targetIndex];
+        this._currentZoomTarget = target;
         this._state.update({ 
           centerX: target.x, 
           centerY: target.y, 
@@ -238,6 +246,14 @@ export class AnimationController {
     }, 35);
     
     return { intervalId, targetIndex };
+  }
+  
+  /**
+   * Gets the current zoom target name (for location labels)
+   * @returns {string|null}
+   */
+  getCurrentZoomTargetName() {
+    return this._currentZoomTarget?.name || null;
   }
 
   /**

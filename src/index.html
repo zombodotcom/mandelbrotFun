@@ -24,9 +24,29 @@
                     </div>
                     <div class="control-item">
                         <label>Max Iterations</label>
-                        <input type="range" id="maxIter" min="50" max="1000" value="256" step="1">
+                        <input type="range" id="maxIter" min="50" max="2000" value="256" step="1">
                         <div class="value-display"><span id="maxIterValue">256</span> iterations</div>
-                        <div class="help-text">GPU can handle way more!</div>
+                        <div class="help-text">Higher = more detail, slower</div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Quality Preset</label>
+                        <select id="qualityPreset">
+                            <option value="draft">Draft (Fast)</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="high">High Quality</option>
+                            <option value="ultra">Ultra (Slow)</option>
+                        </select>
+                        <div class="help-text">Auto-adjusts iterations</div>
+                    </div>
+                    <div class="control-item">
+                        <label>Auto-Scale Iterations</label>
+                        <select id="autoScale">
+                            <option value="0">Off</option>
+                            <option value="1" selected>On (with zoom)</option>
+                        </select>
+                        <div class="help-text">More detail at deep zoom</div>
                     </div>
                 </div>
             </div>
@@ -54,32 +74,85 @@
                     <div class="control-item">
                         <label>Color Scheme</label>
                         <select id="colorScheme">
-                            <option value="0" selected>Rainbow</option>
-                            <option value="1">Fire</option>
-                            <option value="2">Ice</option>
-                            <option value="3">Matrix Green</option>
-                            <option value="4">Purple Haze</option>
-                            <option value="5">Electric Blue</option>
-                            <option value="6">Lava</option>
-                            <option value="7">Neon</option>
+                            <optgroup label="Classic">
+                                <option value="0" selected>Rainbow</option>
+                                <option value="1">Fire</option>
+                                <option value="2">Ice</option>
+                                <option value="3">Matrix Green</option>
+                                <option value="4">Purple Haze</option>
+                                <option value="5">Electric Blue</option>
+                                <option value="6">Lava</option>
+                                <option value="7">Neon</option>
+                            </optgroup>
+                            <optgroup label="Gradients">
+                                <option value="8">Sunset</option>
+                                <option value="9">Ocean</option>
+                                <option value="10">Plasma</option>
+                            </optgroup>
+                            <optgroup label="Metallic">
+                                <option value="11">Copper</option>
+                                <option value="12">Gold</option>
+                            </optgroup>
+                            <optgroup label="Special">
+                                <option value="13">Monochrome</option>
+                                <option value="14">Stripes</option>
+                                <option value="15">Psychedelic</option>
+                                <option value="16">Forest</option>
+                                <option value="17">Midnight</option>
+                            </optgroup>
+                            <optgroup label="Advanced">
+                                <option value="18">Distance Glow</option>
+                                <option value="19">Orbit Trap</option>
+                            </optgroup>
                         </select>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Coloring Mode</label>
+                        <select id="coloringMode">
+                            <option value="0" selected>Escape Time</option>
+                            <option value="1">Distance Estimation</option>
+                            <option value="2">Orbit Trap</option>
+                        </select>
+                        <div class="help-text">Distance reveals filaments</div>
                     </div>
                 </div>
             </div>
             
             <!-- PRESETS -->
             <div class="control-section">
-                <div class="section-title">Presets</div>
+                <div class="section-title">Famous Locations</div>
                 <div class="button-group">
-                    <button onclick="loadPreset('classic')">Classic (z^2)</button>
-                    <button onclick="loadPreset('cubic')">Cubic (z^3)</button>
-                    <button onclick="loadPreset('quartic')">Quartic (z^4)</button>
+                    <button onclick="loadPreset('classic')">Classic</button>
+                    <button onclick="loadPreset('seahorse')">Seahorse Valley</button>
+                    <button onclick="loadPreset('elephant')">Elephant Valley</button>
+                    <button onclick="loadPreset('northernmost')">Northernmost</button>
+                    <button onclick="loadPreset('feigenbaum')">Feigenbaum</button>
+                    <button onclick="loadPreset('misiurewicz')">Misiurewicz</button>
+                    <button onclick="loadPreset('spiral')">Deep Spiral</button>
+                    <button onclick="loadPreset('tripleSpiral')">Triple Spiral</button>
+                    <button onclick="loadPreset('scepter')">Scepter</button>
+                    <button onclick="loadPreset('antenna')">Antenna</button>
+                </div>
+                <div class="section-title mt-10">Fractal Variants</div>
+                <div class="button-group">
+                    <button onclick="loadPreset('cubic')">Cubic (z³)</button>
+                    <button onclick="loadPreset('quartic')">Quartic (z⁴)</button>
                     <button onclick="loadPreset('burning')">Burning Ship</button>
-                    <button onclick="loadPreset('seahorse')">Seahorse</button>
-                    <button onclick="loadPreset('elephant')">Elephant</button>
-                    <button onclick="loadPreset('spiral')">Spiral</button>
-                    <button onclick="loadPreset('juliaClassic')">Julia Set</button>
-                    <button onclick="resetView()">Reset View</button>
+                    <button onclick="loadPreset('burningArmada')">Armada</button>
+                </div>
+                <div class="section-title mt-10">Julia Sets</div>
+                <div class="button-group">
+                    <button onclick="loadPreset('juliaClassic')">Classic</button>
+                    <button onclick="loadPreset('juliaRabbit')">Douady Rabbit</button>
+                    <button onclick="loadPreset('juliaDragon')">Dragon</button>
+                    <button onclick="loadPreset('juliaSpiral')">Spiral</button>
+                    <button onclick="loadPreset('juliaFlower')">Flower</button>
+                    <button onclick="loadPreset('juliaSiegel')">Siegel Disk</button>
+                </div>
+                <div class="button-group mt-10">
+                    <button onclick="resetView()" class="reset-btn">Reset View</button>
                 </div>
             </div>
             
@@ -102,6 +175,22 @@
                 </div>
             </div>
             
+            <!-- BOOKMARKS -->
+            <div class="control-section">
+                <div class="section-title">Bookmarks</div>
+                <div class="bookmark-controls">
+                    <input type="text" id="bookmarkName" placeholder="Bookmark name..." class="bookmark-input">
+                    <button onclick="saveBookmark()" class="bookmark-btn">Save</button>
+                </div>
+                <div id="bookmarkList" class="bookmark-list">
+                    <div class="help-text">No bookmarks saved yet</div>
+                </div>
+                <div class="button-group mt-10">
+                    <button onclick="exportBookmarks()" class="small-btn">Export</button>
+                    <button onclick="importBookmarks()" class="small-btn">Import</button>
+                </div>
+            </div>
+            
             <!-- EXPORT -->
             <div class="control-section">
                 <div class="section-title">Export & Share</div>
@@ -115,6 +204,7 @@
         <div class="canvas-container">
             <canvas id="glCanvas" width="1200" height="900"></canvas>
             <div class="fps">FPS: <span id="fpsCounter">60</span></div>
+            <div id="locationLabel" class="location-label"></div>
         </div>
         
         <div class="info-panel">
@@ -128,21 +218,24 @@
                     <span class="info-value" id="infoBase">10 (Decimal)</span>
                 </div>
                 <div class="info-item">
-                    <span class="info-label">Center:</span>
-                    <span class="info-value" id="infoCenter">(-0.5, 0)</span>
+                    <span class="info-label">Real (x):</span>
+                    <span class="info-value" id="infoCenterX">-0.5</span>
                 </div>
                 <div class="info-item">
-                    <span class="info-label">Zoom:</span>
+                    <span class="info-label">Imaginary (y):</span>
+                    <span class="info-value" id="infoCenterY">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Magnification:</span>
                     <span class="info-value" id="infoZoom">1.0x</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Rendering:</span>
-                    <span class="info-value">WebGL GPU Shaders</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Animation:</span>
                     <span class="info-value" id="infoAnim">None</span>
                 </div>
+            </div>
+            <div class="button-group mt-10">
+                <button onclick="copyCoordinates()" class="small-btn">Copy Coordinates</button>
             </div>
         </div>
         
