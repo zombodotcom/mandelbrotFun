@@ -182,14 +182,24 @@ export class AnimationController {
     
     const intervalId = setInterval(() => {
       const currentZoom = this._state.get('zoom');
-      const newZoom = currentZoom * (1 + 0.02 * direction);
+      const zoomFactor = 1 + 0.02 * direction * this._speed;
+      const newZoom = currentZoom * zoomFactor;
       
-      // Reverse direction at limits
-      if (newZoom > 10000) direction = -1;
+      // Auto-scale iterations with zoom depth for more detail
+      // More zoom = more iterations needed to reveal detail
+      const baseIterations = 256;
+      const zoomDepth = Math.log2(Math.max(1, newZoom));
+      const scaledIterations = Math.min(1000, Math.floor(baseIterations + zoomDepth * 30));
+      
+      // Reverse direction at limits (10^13 is near float precision limit)
+      if (newZoom > 1e13) direction = -1;
       if (newZoom < 0.5) direction = 1;
       
-      this._state.update({ zoom: newZoom });
-    }, 50 / this._speed);
+      this._state.update({ 
+        zoom: newZoom,
+        maxIterations: scaledIterations
+      });
+    }, 50);
     
     return { intervalId, direction };
   }

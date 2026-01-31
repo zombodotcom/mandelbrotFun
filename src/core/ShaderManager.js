@@ -16,7 +16,11 @@ void main() {
  * Fragment shader source for Mandelbrot rendering
  */
 export const FRAGMENT_SHADER_SOURCE = `
-precision mediump float;
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+  precision highp float;
+#else
+  precision mediump float;
+#endif
 
 uniform vec2 u_resolution;
 uniform vec2 u_center;
@@ -108,6 +112,7 @@ void main() {
     }
     
     float iterations = 0.0;
+    float smoothVal = 0.0;
     
     for (int i = 0; i < 1000; i++) {
         if (float(i) >= u_maxIter) break;
@@ -118,8 +123,13 @@ void main() {
         
         z = complexPower(z, u_power) + c;
         
-        if (dot(z, z) > 4.0) {
-            iterations = float(i);
+        float magSq = dot(z, z);
+        if (magSq > 256.0) {
+            // Smooth iteration count using continuous potential
+            float log_zn = log(magSq) / 2.0;
+            float nu = log(log_zn / log(2.0)) / log(u_power);
+            smoothVal = float(i) + 1.0 - nu;
+            iterations = smoothVal;
             break;
         }
         
