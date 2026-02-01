@@ -24,6 +24,7 @@ class MandelbrotApp {
     this.bookmarkManager = null;
     this._fpsUpdateInterval = null;
     this._locationLabel = null;
+    this._resizeHandler = null;
   }
 
   /**
@@ -50,7 +51,8 @@ class MandelbrotApp {
     this.state = new FractalState({ width, height });
 
     // Handle window resize
-    window.addEventListener('resize', () => this._resizeCanvas());
+    this._resizeHandler = () => this._resizeCanvas();
+    window.addEventListener('resize', this._resizeHandler);
 
     // Initialize renderer
     this.renderer = new WebGLRenderer(canvas);
@@ -90,6 +92,20 @@ class MandelbrotApp {
 
     console.log('Mandelbrot Explorer initialized');
     console.log('WebGL Capabilities:', this.renderer.getCapabilities());
+  }
+
+  /**
+   * Sets up controls overlay toggle
+   * @private
+   */
+  _setupControlsToggle() {
+    const overlay = document.getElementById('controlsOverlay');
+    if (!overlay) return;
+
+    // Click backdrop to close
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.remove('open');
+    });
   }
 
   /**
@@ -350,6 +366,12 @@ class MandelbrotApp {
       input.click();
     };
 
+    // Toggle controls overlay
+    window.toggleControls = () => {
+      const overlay = document.getElementById('controlsOverlay');
+      if (overlay) overlay.classList.toggle('open');
+    };
+
     // Copy coordinates
     window.copyCoordinates = () => {
       const state = this.state.getState();
@@ -412,6 +434,10 @@ class MandelbrotApp {
   dispose() {
     if (this._fpsUpdateInterval) {
       clearInterval(this._fpsUpdateInterval);
+    }
+
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler);
     }
 
     if (this.interactionManager) {
