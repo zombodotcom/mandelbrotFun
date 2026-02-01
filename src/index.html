@@ -7,245 +7,231 @@
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Mandelbrot WebGL Explorer</h1>
-        <div class="subtitle">Click to zoom • Drag to pan • GPU-accelerated</div>
-        
-        <div class="canvas-container">
-            <canvas id="glCanvas" width="1200" height="900"></canvas>
-            <div class="fps">FPS: <span id="fpsCounter">60</span></div>
-            <div id="locationLabel" class="location-label"></div>
-        </div>
-        
-        <div class="controls">
-            <!-- FORMULA SECTION -->
-            <div class="control-section">
-                <div class="section-title">Formula: z^n + c</div>
-                <div class="control-row">
-                    <div class="control-item">
-                        <label>Power (n)</label>
-                        <input type="range" id="power" min="2" max="12" value="2" step="0.1">
-                        <div class="value-display">z^<span id="powerValue">2.0</span> + c</div>
-                        <div class="help-text">Classic = 2, try 3, 4, 5...</div>
+    <!-- Fullscreen canvas - always visible -->
+    <div class="canvas-container">
+        <canvas id="glCanvas"></canvas>
+        <div class="fps">FPS: <span id="fpsCounter">60</span></div>
+        <div id="locationLabel" class="location-label"></div>
+    </div>
+
+    <!-- Top bar overlay -->
+    <header class="top-bar">
+        <h1>Mandelbrot Explorer</h1>
+        <button id="controlsToggle" class="controls-toggle" onclick="toggleControls()" aria-label="Toggle controls">
+            <span class="toggle-icon">≡</span> Controls
+        </button>
+    </header>
+
+    <!-- Controls dropdown overlay -->
+    <div id="controlsOverlay" class="controls-overlay">
+        <div class="controls-panel">
+            <div class="controls-scroll">
+                <!-- FORMULA SECTION -->
+                <div class="control-section">
+                    <div class="section-title">Formula: z^n + c</div>
+                    <div class="control-row">
+                        <div class="control-item">
+                            <label>Power (n)</label>
+                            <input type="range" id="power" min="2" max="12" value="2" step="0.1">
+                            <div class="value-display">z^<span id="powerValue">2.0</span> + c</div>
+                        </div>
+                        <div class="control-item">
+                            <label>Max Iterations</label>
+                            <input type="range" id="maxIter" min="50" max="5000" value="256" step="10">
+                            <div class="value-display"><span id="maxIterValue">256</span> iterations</div>
+                        </div>
                     </div>
-                    <div class="control-item">
-                        <label>Max Iterations</label>
-                        <input type="range" id="maxIter" min="50" max="5000" value="256" step="10">
-                        <div class="value-display"><span id="maxIterValue">256</span> iterations</div>
-                        <div class="help-text">Higher = more detail, slower</div>
-                    </div>
-                </div>
-                <div class="control-row">
-                    <div class="control-item">
-                        <label>Quality Preset</label>
-                        <select id="qualityPreset">
-                            <option value="draft">Draft (Fast)</option>
-                            <option value="normal" selected>Normal</option>
-                            <option value="high">High Quality</option>
-                            <option value="ultra">Ultra (Slow)</option>
-                        </select>
-                        <div class="help-text">Auto-adjusts iterations</div>
-                    </div>
-                    <div class="control-item">
-                        <label>Auto-Scale Iterations</label>
-                        <select id="autoScale">
-                            <option value="0">Off</option>
-                            <option value="1" selected>On (with zoom)</option>
-                        </select>
-                        <div class="help-text">More detail at deep zoom</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- NUMBER BASE SECTION -->
-            <div class="control-section">
-                <div class="section-title">Number Base System</div>
-                <div class="control-row">
-                    <div class="control-item">
-                        <label>Visualization Base</label>
-                        <select id="numberBase">
-                            <option value="2">Binary (Base-2)</option>
-                            <option value="3">Ternary (Base-3)</option>
-                            <option value="4">Quaternary (Base-4)</option>
-                            <option value="5">Quinary (Base-5)</option>
-                            <option value="6">Senary (Base-6)</option>
-                            <option value="8">Octal (Base-8)</option>
-                            <option value="10" selected>Decimal (Base-10)</option>
-                            <option value="12">Dozenal (Base-12)</option>
-                            <option value="16">Hexadecimal (Base-16)</option>
-                            <option value="32">Base-32</option>
-                            <option value="60">Sexagesimal (Base-60)</option>
-                        </select>
-                    </div>
-                    <div class="control-item">
-                        <label>Color Scheme</label>
-                        <select id="colorScheme">
-                            <optgroup label="Classic">
-                                <option value="0" selected>Rainbow</option>
-                                <option value="1">Fire</option>
-                                <option value="2">Ice</option>
-                                <option value="3">Matrix Green</option>
-                                <option value="4">Purple Haze</option>
-                                <option value="5">Electric Blue</option>
-                                <option value="6">Lava</option>
-                                <option value="7">Neon</option>
-                            </optgroup>
-                            <optgroup label="Gradients">
-                                <option value="8">Sunset</option>
-                                <option value="9">Ocean</option>
-                                <option value="10">Plasma</option>
-                            </optgroup>
-                            <optgroup label="Metallic">
-                                <option value="11">Copper</option>
-                                <option value="12">Gold</option>
-                            </optgroup>
-                            <optgroup label="Special">
-                                <option value="13">Monochrome</option>
-                                <option value="14">Stripes</option>
-                                <option value="15">Psychedelic</option>
-                                <option value="16">Forest</option>
-                                <option value="17">Midnight</option>
-                            </optgroup>
-                            <optgroup label="Advanced">
-                                <option value="18">Distance Glow</option>
-                                <option value="19">Orbit Trap</option>
-                            </optgroup>
-                        </select>
+                    <div class="control-row">
+                        <div class="control-item">
+                            <label>Quality Preset</label>
+                            <select id="qualityPreset">
+                                <option value="draft">Draft (Fast)</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="high">High Quality</option>
+                                <option value="ultra">Ultra (Slow)</option>
+                            </select>
+                        </div>
+                        <div class="control-item">
+                            <label>Auto-Scale Iterations</label>
+                            <select id="autoScale">
+                                <option value="0">Off</option>
+                                <option value="1" selected>On (with zoom)</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-                <div class="control-row">
-                    <div class="control-item">
-                        <label>Coloring Mode</label>
-                        <select id="coloringMode">
-                            <option value="0" selected>Escape Time</option>
-                            <option value="1">Distance Estimation</option>
-                            <option value="2">Orbit Trap</option>
-                        </select>
-                        <div class="help-text">Distance reveals filaments</div>
+
+                <!-- NUMBER BASE SECTION -->
+                <div class="control-section">
+                    <div class="section-title">Colors & Display</div>
+                    <div class="control-row">
+                        <div class="control-item">
+                            <label>Visualization Base</label>
+                            <select id="numberBase">
+                                <option value="2">Binary (Base-2)</option>
+                                <option value="3">Ternary (Base-3)</option>
+                                <option value="4">Quaternary (Base-4)</option>
+                                <option value="5">Quinary (Base-5)</option>
+                                <option value="6">Senary (Base-6)</option>
+                                <option value="8">Octal (Base-8)</option>
+                                <option value="10" selected>Decimal (Base-10)</option>
+                                <option value="12">Dozenal (Base-12)</option>
+                                <option value="16">Hexadecimal (Base-16)</option>
+                                <option value="32">Base-32</option>
+                                <option value="60">Sexagesimal (Base-60)</option>
+                            </select>
+                        </div>
+                        <div class="control-item">
+                            <label>Color Scheme</label>
+                            <select id="colorScheme">
+                                <optgroup label="Classic">
+                                    <option value="0" selected>Rainbow</option>
+                                    <option value="1">Fire</option>
+                                    <option value="2">Ice</option>
+                                    <option value="3">Matrix Green</option>
+                                    <option value="4">Purple Haze</option>
+                                    <option value="5">Electric Blue</option>
+                                    <option value="6">Lava</option>
+                                    <option value="7">Neon</option>
+                                </optgroup>
+                                <optgroup label="Gradients">
+                                    <option value="8">Sunset</option>
+                                    <option value="9">Ocean</option>
+                                    <option value="10">Plasma</option>
+                                </optgroup>
+                                <optgroup label="Metallic">
+                                    <option value="11">Copper</option>
+                                    <option value="12">Gold</option>
+                                </optgroup>
+                                <optgroup label="Special">
+                                    <option value="13">Monochrome</option>
+                                    <option value="14">Stripes</option>
+                                    <option value="15">Psychedelic</option>
+                                    <option value="16">Forest</option>
+                                    <option value="17">Midnight</option>
+                                </optgroup>
+                                <optgroup label="Advanced">
+                                    <option value="18">Distance Glow</option>
+                                    <option value="19">Orbit Trap</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <div class="control-item">
+                            <label>Coloring Mode</label>
+                            <select id="coloringMode">
+                                <option value="0" selected>Escape Time</option>
+                                <option value="1">Distance Estimation</option>
+                                <option value="2">Orbit Trap</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- PRESETS -->
-            <div class="control-section">
-                <div class="section-title">Famous Locations</div>
-                <div class="button-group">
-                    <button onclick="loadPreset('classic')">Classic</button>
-                    <button onclick="loadPreset('seahorse')">Seahorse Valley</button>
-                    <button onclick="loadPreset('elephant')">Elephant Valley</button>
-                    <button onclick="loadPreset('northernmost')">Northernmost</button>
-                    <button onclick="loadPreset('feigenbaum')">Feigenbaum</button>
-                    <button onclick="loadPreset('misiurewicz')">Misiurewicz</button>
-                    <button onclick="loadPreset('spiral')">Deep Spiral</button>
-                    <button onclick="loadPreset('tripleSpiral')">Triple Spiral</button>
-                    <button onclick="loadPreset('scepter')">Scepter</button>
-                    <button onclick="loadPreset('antenna')">Antenna</button>
+
+                <!-- PRESETS -->
+                <div class="control-section">
+                    <div class="section-title">Famous Locations</div>
+                    <div class="button-group">
+                        <button onclick="loadPreset('classic')">Classic</button>
+                        <button onclick="loadPreset('seahorse')">Seahorse Valley</button>
+                        <button onclick="loadPreset('elephant')">Elephant Valley</button>
+                        <button onclick="loadPreset('northernmost')">Northernmost</button>
+                        <button onclick="loadPreset('feigenbaum')">Feigenbaum</button>
+                        <button onclick="loadPreset('misiurewicz')">Misiurewicz</button>
+                        <button onclick="loadPreset('spiral')">Deep Spiral</button>
+                        <button onclick="loadPreset('tripleSpiral')">Triple Spiral</button>
+                        <button onclick="loadPreset('scepter')">Scepter</button>
+                        <button onclick="loadPreset('antenna')">Antenna</button>
+                    </div>
+                    <div class="section-title mt-10">Fractal Variants</div>
+                    <div class="button-group">
+                        <button onclick="loadPreset('cubic')">Cubic (z³)</button>
+                        <button onclick="loadPreset('quartic')">Quartic (z⁴)</button>
+                        <button onclick="loadPreset('burning')">Burning Ship</button>
+                        <button onclick="loadPreset('burningArmada')">Armada</button>
+                    </div>
+                    <div class="section-title mt-10">Julia Sets</div>
+                    <div class="button-group">
+                        <button onclick="loadPreset('juliaClassic')">Classic</button>
+                        <button onclick="loadPreset('juliaRabbit')">Douady Rabbit</button>
+                        <button onclick="loadPreset('juliaDragon')">Dragon</button>
+                        <button onclick="loadPreset('juliaSpiral')">Spiral</button>
+                        <button onclick="loadPreset('juliaFlower')">Flower</button>
+                        <button onclick="loadPreset('juliaSiegel')">Siegel Disk</button>
+                    </div>
+                    <div class="button-group mt-10">
+                        <button onclick="resetView()" class="reset-btn">Reset View</button>
+                    </div>
                 </div>
-                <div class="section-title mt-10">Fractal Variants</div>
-                <div class="button-group">
-                    <button onclick="loadPreset('cubic')">Cubic (z³)</button>
-                    <button onclick="loadPreset('quartic')">Quartic (z⁴)</button>
-                    <button onclick="loadPreset('burning')">Burning Ship</button>
-                    <button onclick="loadPreset('burningArmada')">Armada</button>
+
+                <!-- ANIMATIONS -->
+                <div class="control-section">
+                    <div class="section-title">Animations</div>
+                    <div class="button-group">
+                        <button onclick="toggleAnimation('zoom')" id="btnZoom">Auto Zoom</button>
+                        <button onclick="toggleAnimation('rotate')" id="btnRotate">Cycle Colors</button>
+                        <button onclick="toggleAnimation('morph')" id="btnMorph">Morph Power</button>
+                        <button onclick="toggleAnimation('base')" id="btnBase">Cycle Bases</button>
+                        <button onclick="toggleAnimation('tour')" id="btnTour">Grand Tour</button>
+                        <button onclick="toggleAnimation('julia')" id="btnJulia">Julia Morph</button>
+                        <button onclick="stopAllAnimations()">Stop All</button>
+                    </div>
+                    <div class="control-item mt-10">
+                        <label>Animation Speed</label>
+                        <input type="range" id="animSpeed" min="1" max="10" value="5" step="1">
+                        <div class="value-display"><span id="animSpeedValue">5</span> / 10</div>
+                    </div>
                 </div>
-                <div class="section-title mt-10">Julia Sets</div>
-                <div class="button-group">
-                    <button onclick="loadPreset('juliaClassic')">Classic</button>
-                    <button onclick="loadPreset('juliaRabbit')">Douady Rabbit</button>
-                    <button onclick="loadPreset('juliaDragon')">Dragon</button>
-                    <button onclick="loadPreset('juliaSpiral')">Spiral</button>
-                    <button onclick="loadPreset('juliaFlower')">Flower</button>
-                    <button onclick="loadPreset('juliaSiegel')">Siegel Disk</button>
+
+                <!-- BOOKMARKS -->
+                <div class="control-section">
+                    <div class="section-title">Bookmarks</div>
+                    <div class="bookmark-controls">
+                        <input type="text" id="bookmarkName" placeholder="Bookmark name..." class="bookmark-input">
+                        <button onclick="saveBookmark()" class="bookmark-btn">Save</button>
+                    </div>
+                    <div id="bookmarkList" class="bookmark-list"></div>
+                    <div class="button-group mt-10">
+                        <button onclick="exportBookmarks()" class="small-btn">Export</button>
+                        <button onclick="importBookmarks()" class="small-btn">Import</button>
+                    </div>
                 </div>
-                <div class="button-group mt-10">
-                    <button onclick="resetView()" class="reset-btn">Reset View</button>
+
+                <!-- EXPORT & INFO -->
+                <div class="control-section">
+                    <div class="section-title">Export & Info</div>
+                    <div class="button-group">
+                        <button onclick="downloadImage()">Download Image</button>
+                        <button onclick="shareURL()">Copy Share URL</button>
+                        <button onclick="copyCoordinates()" class="small-btn">Copy Coordinates</button>
+                    </div>
+                    <div class="info-grid mt-10">
+                        <div class="info-item">
+                            <span class="info-label">Formula:</span>
+                            <span class="info-value" id="infoFormula">z^2 + c</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Base:</span>
+                            <span class="info-value" id="infoBase">10 (Decimal)</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Center:</span>
+                            <span class="info-value"><span id="infoCenterX">-0.5</span>, <span id="infoCenterY">0</span></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Zoom:</span>
+                            <span class="info-value" id="infoZoom">1.0x</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Animation:</span>
+                            <span class="info-value" id="infoAnim">None</span>
+                        </div>
+                    </div>
+                    <div class="help-text mt-10">
+                        Click to zoom • Shift+Click to zoom out • Drag to pan • Mouse wheel to zoom
+                    </div>
                 </div>
-            </div>
-            
-            <!-- ANIMATIONS -->
-            <div class="control-section">
-                <div class="section-title">Animations (Real-time GPU!)</div>
-                <div class="button-group">
-                    <button onclick="toggleAnimation('zoom')" id="btnZoom">Auto Zoom</button>
-                    <button onclick="toggleAnimation('rotate')" id="btnRotate">Cycle Colors</button>
-                    <button onclick="toggleAnimation('morph')" id="btnMorph">Morph Power</button>
-                    <button onclick="toggleAnimation('base')" id="btnBase">Cycle Bases</button>
-                    <button onclick="toggleAnimation('tour')" id="btnTour">Grand Tour</button>
-                    <button onclick="toggleAnimation('julia')" id="btnJulia">Julia Morph</button>
-                    <button onclick="stopAllAnimations()">Stop All</button>
-                </div>
-                <div class="control-item mt-10">
-                    <label>Animation Speed</label>
-                    <input type="range" id="animSpeed" min="1" max="10" value="5" step="1">
-                    <div class="value-display"><span id="animSpeedValue">5</span> / 10</div>
-                </div>
-            </div>
-            
-            <!-- BOOKMARKS -->
-            <div class="control-section">
-                <div class="section-title">Bookmarks</div>
-                <div class="bookmark-controls">
-                    <input type="text" id="bookmarkName" placeholder="Bookmark name..." class="bookmark-input">
-                    <button onclick="saveBookmark()" class="bookmark-btn">Save</button>
-                </div>
-                <div id="bookmarkList" class="bookmark-list">
-                    <div class="help-text">No bookmarks saved yet</div>
-                </div>
-                <div class="button-group mt-10">
-                    <button onclick="exportBookmarks()" class="small-btn">Export</button>
-                    <button onclick="importBookmarks()" class="small-btn">Import</button>
-                </div>
-            </div>
-            
-            <!-- EXPORT -->
-            <div class="control-section">
-                <div class="section-title">Export & Share</div>
-                <div class="button-group">
-                    <button onclick="downloadImage()">Download Image</button>
-                    <button onclick="shareURL()">Copy Share URL</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="info-panel">
-            <div class="info-grid">
-                <div class="info-item">
-                    <span class="info-label">Formula:</span>
-                    <span class="info-value" id="infoFormula">z^2 + c</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Number Base:</span>
-                    <span class="info-value" id="infoBase">10 (Decimal)</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Real (x):</span>
-                    <span class="info-value" id="infoCenterX">-0.5</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Imaginary (y):</span>
-                    <span class="info-value" id="infoCenterY">0</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Magnification:</span>
-                    <span class="info-value" id="infoZoom">1.0x</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Animation:</span>
-                    <span class="info-value" id="infoAnim">None</span>
-                </div>
-            </div>
-            <div class="button-group mt-10">
-                <button onclick="copyCoordinates()" class="small-btn">Copy Coordinates</button>
-            </div>
-        </div>
-        
-        <div class="info-panel mt-10">
-            <div class="section-title">Controls</div>
-            <div class="help-text">
-                <strong>Click:</strong> Zoom in at point | 
-                <strong>Shift+Click:</strong> Zoom out | 
-                <strong>Drag:</strong> Pan around | 
-                <strong>Mouse Wheel:</strong> Zoom in/out
             </div>
         </div>
     </div>

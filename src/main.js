@@ -31,11 +31,7 @@ class MandelbrotApp {
    * @param {Object} config - Configuration options
    */
   init(config = {}) {
-    const {
-      canvasId = 'glCanvas',
-      width = 1200,
-      height = 900
-    } = config;
+    const { canvasId = 'glCanvas' } = config;
 
     // Get canvas element
     const canvas = document.getElementById(canvasId);
@@ -43,11 +39,18 @@ class MandelbrotApp {
       throw new Error(`Canvas element with id "${canvasId}" not found`);
     }
 
-    // Initialize state
-    this.state = new FractalState({
-      width,
-      height
-    });
+    // Size canvas to viewport (container is fullscreen)
+    const container = canvas.parentElement;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    // Initialize state with canvas dimensions
+    this.state = new FractalState({ width, height });
+
+    // Handle window resize
+    window.addEventListener('resize', () => this._resizeCanvas());
 
     // Initialize renderer
     this.renderer = new WebGLRenderer(canvas);
