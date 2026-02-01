@@ -79,6 +79,9 @@ class MandelbrotApp {
     // Expose global functions for HTML onclick handlers
     this._exposeGlobalFunctions();
 
+    // Controls overlay toggle
+    this._setupControlsToggle();
+
     // Start render loop
     this._startRenderLoop();
 
@@ -87,6 +90,26 @@ class MandelbrotApp {
 
     console.log('Mandelbrot Explorer initialized');
     console.log('WebGL Capabilities:', this.renderer.getCapabilities());
+  }
+
+  /**
+   * Resizes canvas to fill viewport and updates state
+   * @private
+   */
+  _resizeCanvas() {
+    const canvas = this.renderer?.getCanvas();
+    if (!canvas || !this.state) return;
+
+    const container = canvas.parentElement;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+      this.state.update({ width, height });
+      this.renderer.resize(width, height);
+    }
   }
 
   /**
