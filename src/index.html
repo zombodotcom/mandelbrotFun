@@ -8,8 +8,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>MANDELBROT WebGL EXPLORER</h1>
-        <div class="subtitle">GPU-accelerated fractal rendering with real-time animations - 60+ FPS</div>
+        <h1>Mandelbrot WebGL Explorer</h1>
+        <div class="subtitle">Click to zoom • Drag to pan • GPU-accelerated</div>
+        
+        <div class="canvas-container">
+            <canvas id="glCanvas" width="1200" height="900"></canvas>
+            <div class="fps">FPS: <span id="fpsCounter">60</span></div>
+            <div id="locationLabel" class="location-label"></div>
+        </div>
         
         <div class="controls">
             <!-- FORMULA SECTION -->
@@ -199,12 +205,6 @@
                     <button onclick="shareURL()">Copy Share URL</button>
                 </div>
             </div>
-        </div>
-        
-        <div class="canvas-container">
-            <canvas id="glCanvas" width="1200" height="900"></canvas>
-            <div class="fps">FPS: <span id="fpsCounter">60</span></div>
-            <div id="locationLabel" class="location-label"></div>
         </div>
         
         <div class="info-panel">
